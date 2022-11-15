@@ -31,7 +31,7 @@ const GameLength = 6 * 60;
 class BoggleGame {
 	constructor() {
 		this.#grid = new BoggleGrid();
-		this.#words = BoggleGame.#callInWorker(
+		this.#worker = new WorkerBox(
 			async ([BoggleGrid], serial) => {
 				const grid = BoggleGrid.deserialize(serial);
 				const request = await fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt");
@@ -44,9 +44,11 @@ class BoggleGame {
 					throw new Error(await request.text());
 				}
 			}, [BoggleGrid], this.#grid.serialize()
-		).then((words) => new Set(words)).catch(() => {
-			alert("Error loading word list");
+		);
+		this.#words = this.#worker.promise().then((words) => new Set(words)).catch((e) => {
+			alert(`Error loading word list: ${e}`);
 		});
+		this.#words.then(() => console.log("Word search complete"));
 	}
 
 	static #letterDiv(letter) {
@@ -201,31 +203,8 @@ class BoggleGame {
 		document.getElementById("reveal").appendChild(ul);
 	}
 
-	static #callInWorker(f, deps, data) {
-		const caller = (f, deps) => {
-			addEventListener("message", async ({data}) => {
-				try {
-					postMessage({"success": await f(deps, data)});
-				} catch (e) {
-					postMessage({"error": e.message});
-				}
-			});
-		};
-		return new Promise((resolve, reject) => {
-			const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => v.toString()).join(",")}]);`;
-			const worker = new Worker(`data:application/javascript,${encodeURIComponent(script)}`);
-			worker.addEventListener("message", ({data}) => {
-				if (data.success) {
-					resolve(data.success);
-				} else {
-					reject(data.error);
-				}
-			});
-			worker.postMessage(data);
-		});
-	}
-
 	#grid;
+	#worker;
 	#words;
 }
 
@@ -376,6 +355,39 @@ class Timer {
 	#at
 	#onComplete
 	#interval
+}
+
+class WorkerBox {
+	constructor(f, deps, data) {
+		const caller = (f, deps) => {
+			addEventListener("message", async ({data}) => {
+				try {
+					postMessage({"success": await f(deps, data)});
+				} catch (e) {
+					postMessage({"error": e.message});
+				}
+			});
+		};
+		const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => v.toString()).join(",")}]);`;
+		this.#worker = new Worker(`data:application/javascript,${encodeURIComponent(script)}`);
+		this.#promise = new Promise((resolve, reject) => {
+			this.#worker.addEventListener("message", ({data}) => {
+				if (data.success) {
+					resolve(data.success);
+				} else {
+					reject(data.error);
+				}
+			});
+			this.#worker.postMessage(data);
+		});
+	}
+
+	promise() {
+		return this.#promise;
+	}
+
+	#worker;
+	#promise;
 }
 
 new BoggleGame().renderGame(document.getElementById("game"));
