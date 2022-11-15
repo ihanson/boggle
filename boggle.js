@@ -31,15 +31,23 @@ const GameLength = 6 * 60;
 class BoggleGame {
 	constructor() {
 		this.#grid = new BoggleGrid();
-		this.#words = BoggleGame.#callInWorker(async ([BoggleGrid], serial) => {
-			const grid = BoggleGrid.deserialize(serial);
-			const request = await fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt");
-			const words = (await request.text())
-				.trim().split(/\s+/)
-				.filter((word) => word.length >= 4)
-				.filter((word) => grid.makeWord(word));
-			return words;
-		}, [BoggleGrid], this.#grid.serialize()).then((words) => new Set(words));
+		this.#words = BoggleGame.#callInWorker(
+			async ([BoggleGrid], serial) => {
+				const grid = BoggleGrid.deserialize(serial);
+				const request = await fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt");
+				if (request.status === 200) {
+					const words = (await request.text())
+						.trim().split(/\s+/)
+						.filter((word) => word.length >= 4)
+						.filter((word) => grid.makeWord(word));
+					return words;
+				} else {
+					throw new Error(await request.text());
+				}
+			}, [BoggleGrid], this.#grid.serialize()
+		).then((words) => new Set(words)).catch(() => {
+			alert("Error loading word list");
+		});
 	}
 
 	static #letterDiv(letter) {
@@ -195,13 +203,23 @@ class BoggleGame {
 	static #callInWorker(f, deps, data) {
 		const caller = (f, deps) => {
 			addEventListener("message", async ({data}) => {
-				postMessage(await f(deps, data));
+				try {
+					postMessage({"success": await f(deps, data)});
+				} catch (e) {
+					postMessage({"error": e.message});
+				}
 			});
 		};
-		return new Promise((resolve) => {
+		return new Promise((resolve, reject) => {
 			const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => v.toString()).join(",")}]);`;
 			const worker = new Worker(`data:application/javascript,${encodeURIComponent(script)}`);
-			worker.addEventListener("message", ({data}) => resolve(data));
+			worker.addEventListener("message", ({data}) => {
+				if (data.success) {
+					resolve(data.success);
+				} else {
+					reject(data.error);
+				}
+			});
 			worker.postMessage(data);
 		});
 	}
