@@ -95,6 +95,7 @@ class BoggleGame {
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(rows);
 				gameDiv.appendChild(wordChecker);
+				boardDiv.classList.add("finished");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
 
 			});

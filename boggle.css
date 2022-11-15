@@ -86,6 +86,11 @@ input:not(:placeholder-shown) {
 	transform: rotate(-180deg);
 }
 
+.board.finished > div > div {
+	animation-name: flash;
+	animation-duration: 4s;
+}
+
 .timerButton {
 	margin-top: 2em;
 	font-size: 24pt;
@@ -116,4 +121,18 @@ input:not(:placeholder-shown) {
 
 .word:hover {
 	text-decoration: underline;
+}
+
+@keyframes flash {
+	from {
+		color: unset;
+	}
+
+	10% {
+		color: transparent;
+	}
+
+	to {
+		color: unset;
+	}
 }
