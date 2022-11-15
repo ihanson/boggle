@@ -34,7 +34,7 @@ class BoggleGame {
 		this.#worker = new WorkerBox(
 			async ([BoggleGrid], serial) => {
 				const grid = BoggleGrid.deserialize(serial);
-				const request = await fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt");
+				const request = await fetch("https://raw.githubusercontent.com/redbo/scrabble/master/dictionary.txt");
 				if (request.status === 200) {
 					const words = (await request.text()).trim().split(/\s+/);
 					console.log(`Loaded ${words.length.toLocaleString()} words`);
