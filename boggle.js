@@ -30,28 +30,16 @@ const GameLength = 6 * 60;
 
 class BoggleGame {
 	constructor() {
-		const dice = [...Dice];
-		BoggleGame.#shuffleArray(dice);
-		const letters = dice.map((die) => die[BoggleGame.#randomInt(0, die.length - 1)]);
-		const size = Math.sqrt(letters.length);
-		this.#letters = [];
-		this.#words = fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt")
-			.then((f) => f.text())
-			.then((t) => new Set(t.trim().split(/\s+/).filter((word) => word.length >= 4)));
-		for (let row = 0; row < size; row++) {
-			this.#letters.push(letters.slice(row * size, (row + 1) * size));
-		}
-	}
-
-	static #shuffleArray(arr) {
-		for (let i = 0; i < arr.length; i++) {
-			const j = BoggleGame.#randomInt(i, arr.length - 1);
-			[arr[i], arr[j]] = [arr[j], arr[i]];
-		}
-	}
-
-	static #randomInt(start, end) {
-		return Math.floor(Math.random() * (end - start + 1)) + start;
+		this.#grid = new BoggleGrid();
+		this.#words = BoggleGame.#callInWorker(async ([BoggleGrid], serial) => {
+			const grid = BoggleGrid.deserialize(serial);
+			const request = await fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt");
+			const words = (await request.text())
+				.trim().split(/\s+/)
+				.filter((word) => word.length >= 4)
+				.filter((word) => grid.makeWord(word));
+			return words;
+		}, [BoggleGrid], this.#grid.serialize()).then((words) => new Set(words));
 	}
 
 	static #letterDiv(letter) {
@@ -71,7 +59,7 @@ class BoggleGame {
 	renderGame(gameDiv) {
 		const boardDiv = document.createElement("div");
 		boardDiv.classList.add("board");
-		const rows = this.#letters.map(
+		const rows = this.#grid.letters.map(
 			(row) => row.map(
 				(letter) => BoggleGame.#letterDiv(letter)
 			)
@@ -133,7 +121,7 @@ class BoggleGame {
 		textbox.setAttribute("placeholder", "Check a word");
 		textbox.addEventListener("input", () => {
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
-			const wordPath = this.#makeWord(word);
+			const wordPath = this.#grid.makeWord(word);
 			if (!wordPath) {
 				result.innerText = `You cannot make ${word} with these letters.`;
 				result.classList.remove("valid");
@@ -176,51 +164,8 @@ class BoggleGame {
 		return [div, textbox];
 	}
 
-	#makeWord(word) {
-		const wordArr = [...word]
-		for (const [rowIndex, row] of this.#letters.entries()) {
-			for (const [colIndex, letter] of row.entries()) {
-				const result = this.#makeWordHelper(wordArr, colIndex, rowIndex, []);
-				if (result) {
-					return result;
-				}
-			}
-		}
-		return null;
-	}
-
-	#makeWordHelper(word, colIndex, rowIndex, seen) {
-		if (word.length === 0) {
-			return [];
-		}
-		const letter = this.#letters[rowIndex][colIndex].toLocaleUpperCase();
-		if (word.slice(0, letter.length).join("").toLocaleUpperCase() === letter) {
-			if (word.length === letter.length) {
-				return [[colIndex, rowIndex]];
-			}
-			for (const dx of [-1, 0, 1]) {
-				for (const dy of [-1, 0, 1]) {
-					if (dx === 0 && dy === 0) {
-						continue;
-					}
-					const x = colIndex + dx;
-					const y = rowIndex + dy;
-					if (seen.some(([seenX, seenY]) => seenX === x && seenY === y)) {
-						continue;
-					}
-					if (0 <= y && y < this.#letters.length && 0 <= x && x < this.#letters[y].length) {
-						const result = this.#makeWordHelper(word.slice(letter.length), x, y, [...seen, [colIndex, rowIndex]]);
-						if (result) {
-							return [[colIndex, rowIndex], ...result];
-						}
-					}
-				}
-			}
-		}
-		return null;
-	}
-
 	async #showAllWords(wordInput) {
+		const words = [...await this.#words];
 		const button = document.createElement("button");
 		button.appendChild(document.createTextNode("\xab"));
 		button.classList.add("expand");
@@ -230,7 +175,6 @@ class BoggleGame {
 		});
 		document.getElementById("game").appendChild(button);
 		const ul = document.createElement("ul");
-		const words = [...await this.#words].filter((word) => this.#makeWord(word));
 		words.sort((a, b) => (b.length - a.length) || a.localeCompare(b))
 		for (const word of words) {
 			const li = document.createElement("li");
@@ -247,8 +191,103 @@ class BoggleGame {
 		document.getElementById("reveal").appendChild(ul);
 	}
 
-	#letters;
+	static #callInWorker(f, deps, data) {
+		const caller = (f, deps) => {
+			addEventListener("message", async ({data}) => {
+				postMessage(await f(deps, data));
+			});
+		};
+		return new Promise((resolve) => {
+			const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => v.toString()).join(",")}]);`;
+			const worker = new Worker(`data:application/javascript,${encodeURIComponent(script)}`);
+			worker.addEventListener("message", ({data}) => resolve(data));
+			worker.postMessage(data);
+		});
+	}
+
+	#grid;
 	#words;
+}
+
+class BoggleGrid {
+	constructor(letters) {
+		this.letters = letters ?? BoggleGrid.#randomLetters();
+	}
+
+	serialize() {
+		return JSON.stringify(this.letters);
+	}
+
+	static deserialize(serial) {
+		return new BoggleGrid(JSON.parse(serial));
+	}
+
+	static #randomLetters() {
+		const dice = [...Dice];
+		BoggleGrid.#shuffleArray(dice);
+		const letters = dice.map((die) => die[BoggleGrid.#randomInt(0, die.length - 1)]);
+		const rows = [];
+		const size = Math.sqrt(letters.length);
+		for (let row = 0; row < size; row++) {
+			rows.push(letters.slice(row * size, (row + 1) * size));
+		}
+		return rows;
+	}
+
+	static #shuffleArray(arr) {
+		for (let i = 0; i < arr.length; i++) {
+			const j = BoggleGrid.#randomInt(i, arr.length - 1);
+			[arr[i], arr[j]] = [arr[j], arr[i]];
+		}
+	}
+
+	static #randomInt(start, end) {
+		return Math.floor(Math.random() * (end - start + 1)) + start;
+	}
+
+	makeWord(word) {
+		const wordArr = [...word]
+		for (const [rowIndex, row] of this.letters.entries()) {
+			for (const [colIndex, letter] of row.entries()) {
+				const result = this.#makeWordHelper(wordArr, colIndex, rowIndex, []);
+				if (result) {
+					return result;
+				}
+			}
+		}
+		return null;
+	}
+
+	#makeWordHelper(word, colIndex, rowIndex, seen) {
+		if (word.length === 0) {
+			return [];
+		}
+		const letter = this.letters[rowIndex][colIndex].toLocaleUpperCase();
+		if (word.slice(0, letter.length).join("").toLocaleUpperCase() === letter) {
+			if (word.length === letter.length) {
+				return [[colIndex, rowIndex]];
+			}
+			for (const dx of [-1, 0, 1]) {
+				for (const dy of [-1, 0, 1]) {
+					if (dx === 0 && dy === 0) {
+						continue;
+					}
+					const x = colIndex + dx;
+					const y = rowIndex + dy;
+					if (seen.some(([seenX, seenY]) => seenX === x && seenY === y)) {
+						continue;
+					}
+					if (0 <= y && y < this.letters.length && 0 <= x && x < this.letters[y].length) {
+						const result = this.#makeWordHelper(word.slice(letter.length), x, y, [...seen, [colIndex, rowIndex]]);
+						if (result) {
+							return [[colIndex, rowIndex], ...result];
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
 }
 
 class Timer {
