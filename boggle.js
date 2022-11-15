@@ -197,7 +197,7 @@ class BoggleGame {
 							imgA.setAttribute("href", `https://en.wiktionary.org/w/index.php?search=${enc}`);
 							imgA.classList.add("wiki");
 							const img = document.createElement("img");
-							img.setAttribute("src", "resources/wiktionary.png");
+							img.setAttribute("src", "Resources/wiktionary.png");
 							img.setAttribute("alt", "Wiktionary");
 							img.setAttribute("title", "Wiktionary");
 							imgA.appendChild(img);
