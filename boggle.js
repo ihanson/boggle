@@ -186,21 +186,46 @@ class BoggleGame {
 			document.getElementById("container").classList.add("showReveal");
 		});
 		document.getElementById("game").appendChild(button);
+		const callback = (word) => {
+			wordInput.value = word;
+			wordInput.dispatchEvent(new Event("input"));
+		};
+		const wordsByLength = BoggleGame.#group(words, (word) => word.length);
+		const lists = [...wordsByLength.keys()]
+			.sort((a, b) => b - a)
+			.map((len) => BoggleGame.#wordList(
+				[...wordsByLength.get(len)].sort((a, b) => a.localeCompare(b)),
+				callback
+			));
+		for (const list of lists) {
+			document.getElementById("reveal").appendChild(list);
+		}
+	}
+
+	static #group(list, groupBy) {
+		const map = new Map();
+		for (const item of list) {
+			const val = groupBy(item);
+			if (!map.has(val)) {
+				map.set(val, new Set());
+			}
+			map.get(val).add(item);
+		}
+		return map;
+	}
+
+	static #wordList(words, onClick) {
 		const ul = document.createElement("ul");
-		words.sort((a, b) => (b.length - a.length) || a.localeCompare(b))
 		for (const word of words) {
 			const li = document.createElement("li");
 			const wordButton = document.createElement("button");
 			wordButton.classList.add("word");
 			wordButton.appendChild(document.createTextNode(word.toLocaleLowerCase()));
-			wordButton.addEventListener("click", () => {
-				wordInput.value = word;
-				wordInput.dispatchEvent(new Event("input"));
-			});
+			wordButton.addEventListener("click", () => onClick(word));
 			li.appendChild(wordButton);
 			ul.appendChild(li);
 		}
-		document.getElementById("reveal").appendChild(ul);
+		return ul;
 	}
 
 	#grid;
