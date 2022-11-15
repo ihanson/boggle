@@ -107,7 +107,7 @@ class BoggleGame {
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(rows);
 				gameDiv.appendChild(wordChecker);
-				this.#showAllWords(wordInput);
+				setTimeout(() => this.#showAllWords(wordInput), 0);
 
 			});
 		timerButton.addEventListener("click", () => {
@@ -240,7 +240,6 @@ class BoggleGame {
 			wordButton.addEventListener("click", () => {
 				wordInput.value = word;
 				wordInput.dispatchEvent(new Event("input"));
-				
 			});
 			li.appendChild(wordButton);
 			ul.appendChild(li);
