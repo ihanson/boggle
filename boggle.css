@@ -3,6 +3,10 @@ html, body {
 	margin: 0;
 }
 
+a, a:visited {
+	color: #06c;
+}
+
 #container {
 	display: flex;
 	height: 100%;
@@ -47,7 +51,9 @@ input:not(:placeholder-shown) {
 }
 
 .board > div > div {
-	display: inline-block;
+	display: inline-flex;
+	flex-direction: column;
+	justify-content: center;
 	font-size: 48pt;
 	height: 1.5em;
 	width: 1.5em;
