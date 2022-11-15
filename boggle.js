@@ -82,12 +82,15 @@ class BoggleGame {
 		}
 		boardDiv.classList.add("hidden");
 		const boardContainer = document.createElement("div");
+		boardContainer.classList.add("boardContainer");
 		boardContainer.appendChild(boardDiv);
 		gameDiv.appendChild(boardContainer);
 
+		const startButton = document.createElement("button");
+		startButton.classList.add("timerButton");
+		startButton.appendChild(document.createTextNode("Start"));
 		const timerButton = document.createElement("button");
 		timerButton.classList.add("timerButton");
-		timerButton.appendChild(document.createTextNode("Start"));
 		const timerDiv = document.createElement("div");
 		timerDiv.classList.add("timer");
 		const timer = new Timer(GameLength)
@@ -106,22 +109,39 @@ class BoggleGame {
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(rows);
 				gameDiv.appendChild(wordChecker);
+				flashText("Time!", boardContainer);
 				boardDiv.classList.add("finished");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
 
 			});
+		const startTimer = () => {
+			timer.start();
+			timerButton.innerText = "Pause";
+			boardDiv.classList.remove("hidden");
+		};
+		const pauseTimer = () => {timer.stop();
+			timerButton.innerText = "Resume";
+			boardDiv.classList.add("hidden");
+		};
+		startButton.addEventListener("click", async () => {
+			const time = 1000;
+			startButton.style.visibility = "hidden";
+			for (let count = 3; count > 0; count--) {
+				flashText(count.toLocaleString(), boardContainer, time, "200pt");
+				await sleep(time);
+			}
+			await sleep(time * 0.1);
+			startButton.parentNode.replaceChild(timerButton, startButton);
+			startTimer();
+		});
 		timerButton.addEventListener("click", () => {
 			if (timer.isRunning()) {
-				timer.stop();
-				timerButton.innerText = "Resume";
-				boardDiv.classList.add("hidden");
+				pauseTimer();
 			} else {
-				timer.start();
-				timerButton.innerText = "Pause";
-				boardDiv.classList.remove("hidden");
+				startTimer();
 			}
-		});
-		gameDiv.appendChild(timerButton);
+		})
+		gameDiv.appendChild(startButton);
 		gameDiv.appendChild(timerDiv);
 	}
 
@@ -424,6 +444,24 @@ class WorkerBox {
 
 	#worker;
 	#promise;
+}
+
+function sleep(time) {
+	return new Promise((resolve) => setTimeout(() => resolve(), time));
+}
+
+function flashText(text, target = document.body, duration = 1000, fontSize = "120pt") {
+	const div = document.createElement("div");
+	div.classList.add("flash");
+	div.style.setProperty("--duration", `${duration / 1000}s`);
+	const textDiv = document.createElement("div");
+	textDiv.appendChild(document.createTextNode(text));
+	textDiv.style.fontSize = fontSize;
+	div.appendChild(textDiv);
+	target.appendChild(div);
+	div.addEventListener("animationend", () => {
+		div.parentNode.removeChild(div);
+	});
 }
 
 new BoggleGame().renderGame(document.getElementById("game"));

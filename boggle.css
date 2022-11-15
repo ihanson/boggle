@@ -47,6 +47,10 @@ input:not(:placeholder-shown) {
 	text-transform: uppercase;
 }
 
+.boardContainer {
+	position: relative;
+}
+
 .board {
 	margin: 15px;
 	display: inline-block;
@@ -147,5 +151,41 @@ input:not(:placeholder-shown) {
 
 	to {
 		color: black;
+	}
+}
+
+.flash {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	width: 100%;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	font-family: 'Open Sans Extrabold', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+	color: white;
+	-webkit-text-stroke: 5px black;
+	user-select: none;
+	pointer-events: none;
+	animation-name: flash-text;
+	animation-duration: calc(var(--duration) * 1.2);
+	animation-timing-function: ease-in;
+}
+
+@keyframes flash-text {
+	from {
+		transform: scale(25%);
+		opacity: 0%;
+	}
+
+	16.7%, 83.3% {
+		transform: scale(100%);
+		opacity: 100%;
+	}
+
+	to {
+		transform: scale(90%);
+		opacity: 0%;
 	}
 }
