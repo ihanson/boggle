@@ -35,6 +35,9 @@ class BoggleGame {
 		const letters = dice.map((die) => die[BoggleGame.#randomInt(0, die.length - 1)]);
 		const size = Math.sqrt(letters.length);
 		this.#letters = [];
+		this.#words = fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt")
+			.then((f) => f.text())
+			.then((t) => new Set(t.trim().split(/\s+/).filter((word) => word.length >= 4)));
 		for (let row = 0; row < size; row++) {
 			this.#letters.push(letters.slice(row * size, (row + 1) * size));
 		}
@@ -101,7 +104,9 @@ class BoggleGame {
 				new Audio("Sounds/complete.mp3").play();
 				timerButton.parentElement.removeChild(timerButton);
 				timerDiv.parentElement.removeChild(timerDiv);
-				gameDiv.appendChild(this.#wordChecker(rows));
+				const [wordChecker, wordInput] = this.#wordChecker(rows);
+				gameDiv.appendChild(wordChecker);
+				this.#showAllWords(wordInput);
 
 			});
 		timerButton.addEventListener("click", () => {
@@ -120,9 +125,6 @@ class BoggleGame {
 	}
 
 	#wordChecker(rows) {
-		const words = fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt")
-			.then((f) => f.text())
-			.then((t) => new Set(t.trim().split(/\s+/)));
 		const div = document.createElement("div");
 		const textbox = document.createElement("input");
 		const result = document.createElement("div");
@@ -148,11 +150,12 @@ class BoggleGame {
 					}
 				}
 				if (word.length >= 4) {
-					words.then((words) => {
+					this.#words.then((words) => {
 						if (words.has(word)) {
 							result.innerText = "";
 							const a = document.createElement("a");
 							a.setAttribute("href", `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word.toLocaleLowerCase())}`);
+							a.setAttribute("target", "_blank");
 							a.appendChild(document.createTextNode(word));
 							result.appendChild(a);
 							result.appendChild(document.createTextNode(" is a valid word!"));
@@ -169,7 +172,7 @@ class BoggleGame {
 		});
 		div.appendChild(textbox);
 		div.appendChild(result);
-		return div;
+		return [div, textbox];
 	}
 
 	#makeWord(word) {
@@ -216,7 +219,36 @@ class BoggleGame {
 		return null;
 	}
 
+	async #showAllWords(wordInput) {
+		const button = document.createElement("button");
+		button.appendChild(document.createTextNode("\xab"));
+		button.classList.add("expand");
+		button.addEventListener("click", () => {
+			button.parentElement.removeChild(button);
+			document.getElementById("container").classList.add("showReveal");
+		});
+		document.getElementById("game").appendChild(button);
+		const ul = document.createElement("ul");
+		const words = [...await this.#words].filter((word) => this.#makeWord(word));
+		words.sort((a, b) => (b.length - a.length) || a.localeCompare(b))
+		for (const word of words) {
+			const li = document.createElement("li");
+			const wordButton = document.createElement("button");
+			wordButton.classList.add("word");
+			wordButton.appendChild(document.createTextNode(word.toLocaleLowerCase()));
+			wordButton.addEventListener("click", () => {
+				wordInput.value = word;
+				wordInput.dispatchEvent(new Event("input"));
+				
+			});
+			li.appendChild(wordButton);
+			ul.appendChild(li);
+		}
+		document.getElementById("reveal").appendChild(ul);
+	}
+
 	#letters;
+	#words;
 }
 
 class Timer {

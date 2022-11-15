@@ -1,5 +1,35 @@
+html, body {
+	height: 100%;
+	margin: 0;
+}
+
+#container {
+	display: flex;
+	height: 100%;
+}
+
 #game {
 	text-align: center;
+	flex: 4;
+	position: relative;
+}
+
+.expand {
+	position: absolute;
+	right: 0;
+	top: 0;
+	height: 100%;
+	width: 1em;
+	border: none;
+}
+
+#reveal {
+	flex: 1;
+	overflow-y: scroll;
+}
+
+#container:not(.showReveal) #reveal {
+	display: none;
 }
 
 #game, button, input {
@@ -17,7 +47,7 @@ input:not(:placeholder-shown) {
 
 .board > div > div {
 	display: inline-block;
-	font-size: 32pt;
+	font-size: 48pt;
 	height: 1.5em;
 	width: 1.5em;
 	border: 1px solid brown;
@@ -63,4 +93,14 @@ input:not(:placeholder-shown) {
 
 .result:not(:empty):not(.valid)::before {
 	content: "\274c ";
+}
+
+.word {
+	border: none;
+	background: none;
+	cursor: pointer;
+}
+
+.word:hover {
+	text-decoration: underline;
 }
