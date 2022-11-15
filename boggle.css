@@ -39,7 +39,7 @@ a, a:visited {
 }
 
 #game, button, input {
-	font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
 	font-size: 16pt;
 }
 
@@ -81,6 +81,12 @@ input:not(:placeholder-shown) {
 	color: transparent;
 }
 
+.board.flat > div > div[data-letter="M"],
+.board.flat > div > div[data-letter="W"],
+.board.flat > div > div[data-letter="Z"] {
+	text-decoration: underline;
+}
+
 .board, .board > div > div {
 	transition: transform 1s ease;
 }
@@ -89,7 +95,7 @@ input:not(:placeholder-shown) {
 	transform: rotate(180deg);
 }
 
-.board.rotated > div > div {
+.board.rotated:not(.flat) > div > div {
 	transform: rotate(-180deg);
 }
 

@@ -51,9 +51,16 @@ class BoggleGame {
 		this.#words.then(() => console.log("Word search complete"));
 	}
 
-	static #letterDiv(letter) {
+	static #letterDiv(letter, flat) {
 		const letterDiv = document.createElement("div");
-		letterDiv.appendChild(document.createTextNode(letter));
+		const innerDiv = document.createElement("div");
+		innerDiv.appendChild(document.createTextNode(letter));
+		if (flat) {
+			const angle = Math.floor(Math.random() * 4) * 90;
+			innerDiv.style.transform = `rotate(${angle}deg)`;
+		}
+		letterDiv.setAttribute("data-letter", letter);
+		letterDiv.appendChild(innerDiv);
 		return letterDiv;
 	}
 
@@ -66,11 +73,15 @@ class BoggleGame {
 	}
 
 	renderGame(gameDiv) {
+		const flat = new URLSearchParams(globalThis.location.search).has("flat");
 		const boardDiv = document.createElement("div");
 		boardDiv.classList.add("board");
+		if (flat) {
+			boardDiv.classList.add("flat");
+		}
 		const rows = this.#grid.letters.map(
 			(row) => row.map(
-				(letter) => BoggleGame.#letterDiv(letter)
+				(letter) => BoggleGame.#letterDiv(letter, flat)
 			)
 		);
 		for (const row of rows) {
