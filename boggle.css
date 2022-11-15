@@ -18,6 +18,7 @@ html, body {
 	position: absolute;
 	right: 0;
 	top: 0;
+	font-size: 24pt;
 	height: 100%;
 	width: 1em;
 	border: none;
@@ -79,8 +80,14 @@ input:not(:placeholder-shown) {
 	transform: rotate(-180deg);
 }
 
-#game button, .timer {
+.timerButton {
+	margin-top: 2em;
 	font-size: 24pt;
+}
+
+.timer {
+	font-size: 16pt;
+	color: lightblue;
 }
 
 .result {

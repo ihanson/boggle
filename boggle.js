@@ -87,6 +87,7 @@ class BoggleGame {
 		gameDiv.appendChild(boardDiv);
 
 		const timerButton = document.createElement("button");
+		timerButton.classList.add("timerButton");
 		timerButton.appendChild(document.createTextNode("Start"));
 		const timerDiv = document.createElement("div");
 		timerDiv.classList.add("timer");
