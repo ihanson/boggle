@@ -26,6 +26,8 @@ const Dice = [
 	["O", "O", "O", "T", "T", "U"]
 ];
 
+const GameLength = 6 * 60;
+
 class BoggleGame {
 	constructor() {
 		const dice = [...Dice];
@@ -55,25 +57,234 @@ class BoggleGame {
 		return letterDiv;
 	}
 
+	static #formatTime(time) {
+		return `${
+			Math.floor(time / 60).toLocaleString()
+		}:${
+			(time % 60).toLocaleString().padStart(2, "0")
+		}`;
+	}
+
 	renderGame(gameDiv) {
 		const boardDiv = document.createElement("div");
 		boardDiv.classList.add("board");
 		const rows = this.#letters.map(
 			(row) => row.map(
-				(letter) => [BoggleGame.#letterDiv(letter), letter]
+				(letter) => BoggleGame.#letterDiv(letter)
 			)
 		);
 		for (const row of rows) {
 			const rowDiv = document.createElement("div");
-			for (const [letterDiv] of row) {
+			for (const letterDiv of row) {
 				rowDiv.appendChild(letterDiv);
 			}
 			boardDiv.appendChild(rowDiv);
 		}
+		boardDiv.classList.add("hidden");
 		gameDiv.appendChild(boardDiv);
+
+		const timerButton = document.createElement("button");
+		timerButton.appendChild(document.createTextNode("Start"));
+		const timerDiv = document.createElement("div");
+		timerDiv.classList.add("timer");
+		const timer = new Timer(GameLength)
+			.everySecond((time) => {
+				timerDiv.innerText = BoggleGame.#formatTime(time)
+			})
+			.at(Math.floor(GameLength / 2) + 2, () => {
+				new Audio("Sounds/warning.mp3").play();
+			})
+			.at(Math.floor(GameLength / 2), () => {
+				boardDiv.classList.add("rotated");
+			})
+			.onComplete(() => {
+				new Audio("Sounds/complete.mp3").play();
+				timerButton.parentElement.removeChild(timerButton);
+				timerDiv.parentElement.removeChild(timerDiv);
+				gameDiv.appendChild(this.#wordChecker(rows));
+
+			});
+		timerButton.addEventListener("click", () => {
+			if (timer.isRunning()) {
+				timer.stop();
+				timerButton.innerText = "Resume";
+				boardDiv.classList.add("hidden");
+			} else {
+				timer.start();
+				timerButton.innerText = "Pause";
+				boardDiv.classList.remove("hidden");
+			}
+		});
+		gameDiv.appendChild(timerButton);
+		gameDiv.appendChild(timerDiv);
+	}
+
+	#wordChecker(rows) {
+		const words = fetch("https://raw.githubusercontent.com/raun/Scrabble/master/words.txt")
+			.then((f) => f.text())
+			.then((t) => new Set(t.trim().split(/\s+/)));
+		const div = document.createElement("div");
+		const textbox = document.createElement("input");
+		const result = document.createElement("div");
+		result.classList.add("result");
+		textbox.setAttribute("placeholder", "Check a word");
+		textbox.addEventListener("input", () => {
+			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
+			const wordPath = this.#makeWord(word);
+			if (!wordPath) {
+				result.innerText = `You cannot make ${word} with these letters.`;
+				result.classList.remove("valid");
+				for (const row of rows) {
+					for (const letterDiv of row) {
+						letterDiv.classList.remove("selected");
+					}
+				}
+			} else {
+				for (const [y, row] of rows.entries()) {
+					for (const [x, letterDiv] of row.entries()) {
+						letterDiv.classList.toggle("selected", wordPath.some(
+							([pathX, pathY]) => pathX === x && pathY === y)
+						);
+					}
+				}
+				if (word.length >= 4) {
+					words.then((words) => {
+						if (words.has(word)) {
+							result.innerText = "";
+							const a = document.createElement("a");
+							a.setAttribute("href", `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word.toLocaleLowerCase())}`);
+							a.appendChild(document.createTextNode(word));
+							result.appendChild(a);
+							result.appendChild(document.createTextNode(" is a valid word!"));
+							result.classList.add("valid");
+						} else {
+							result.innerText = `${word} is not a valid word.`;
+							result.classList.remove("valid");
+						}
+					});
+				} else {
+					result.innerText = "";
+				}
+			}
+		});
+		div.appendChild(textbox);
+		div.appendChild(result);
+		return div;
+	}
+
+	#makeWord(word) {
+		const wordArr = [...word]
+		for (const [rowIndex, row] of this.#letters.entries()) {
+			for (const [colIndex, letter] of row.entries()) {
+				const result = this.#makeWordHelper(wordArr, colIndex, rowIndex, []);
+				if (result) {
+					return result;
+				}
+			}
+		}
+		return null;
+	}
+
+	#makeWordHelper(word, colIndex, rowIndex, seen) {
+		if (word.length === 0) {
+			return [];
+		}
+		const letter = this.#letters[rowIndex][colIndex].toLocaleUpperCase();
+		if (word.slice(0, letter.length).join("").toLocaleUpperCase() === letter) {
+			if (word.length === letter.length) {
+				return [[colIndex, rowIndex]];
+			}
+			for (const dx of [-1, 0, 1]) {
+				for (const dy of [-1, 0, 1]) {
+					if (dx === 0 && dy === 0) {
+						continue;
+					}
+					const x = colIndex + dx;
+					const y = rowIndex + dy;
+					if (seen.some(([seenX, seenY]) => seenX === x && seenY === y)) {
+						continue;
+					}
+					if (0 <= y && y < this.#letters.length && 0 <= x && x < this.#letters[y].length) {
+						const result = this.#makeWordHelper(word.slice(letter.length), x, y, [...seen, [colIndex, rowIndex]]);
+						if (result) {
+							return [[colIndex, rowIndex], ...result];
+						}
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	#letters;
+}
+
+class Timer {
+	constructor(seconds) {
+		this.#time = seconds;
+		this.#everySecond = [];
+		this.#at = new Map();
+		this.#onComplete = [];
+	}
+
+	everySecond(callback) {
+		this.#everySecond.push(callback);
+		return this;
+	}
+
+	at(time, callback) {
+		if (!this.#at.has(time)) {
+			this.#at.set(time, []);
+		}
+		this.#at.get(time).push(callback);
+		return this;
+	}
+
+	onComplete(callback) {
+		this.#onComplete.push(callback);
+		return this;
+	}
+
+	isRunning() {
+		return !!this.#interval;
+	}
+
+	start() {
+		this.stop();
+		this.#handleSecond();
+		this.#interval = setInterval(() => {
+			this.#time--;
+			this.#handleSecond();
+		}, 1000);
+	}
+
+	stop() {
+		if (this.isRunning()) {
+			clearInterval(this.#interval);
+			this.#interval = null;
+		}
+	}
+
+	#handleSecond() {
+		for (const callback of this.#everySecond) {
+			callback.call(null, this.#time);
+		}
+		for (const callback of this.#at.get(this.#time) ?? []) {
+			callback.call(null);
+		}
+		if (this.#time === 0) {
+			for (const callback of this.#onComplete) {
+				callback.call(null);
+			}
+			this.stop();
+		}
+	}
+
+	#time
+	#everySecond
+	#at
+	#onComplete
+	#interval
 }
 
 new BoggleGame().renderGame(document.getElementById("game"));
