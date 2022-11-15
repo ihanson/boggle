@@ -115,6 +115,16 @@ input:not(:placeholder-shown) {
 	content: "\274c ";
 }
 
+.result > a.wiki {
+	margin-left: 1ex;
+}
+
+.result > a.wiki > img {
+	--scale-factor: 0.5;
+	height: calc(48px * var(--scale-factor));
+	vertical-align: calc(-12px * var(--scale-factor));
+}
+
 .word {
 	border: none;
 	background: none;

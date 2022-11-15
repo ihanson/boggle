@@ -95,13 +95,13 @@ class BoggleGame {
 				timerDiv.innerText = BoggleGame.#formatTime(time)
 			})
 			.at(Math.floor(GameLength / 2) + 2, () => {
-				new Audio("Sounds/warning.mp3").play();
+				new Audio("Resources/warning.mp3").play();
 			})
 			.at(Math.floor(GameLength / 2), () => {
 				boardDiv.classList.add("rotated");
 			})
 			.onComplete(() => {
-				new Audio("Sounds/complete.mp3").play();
+				new Audio("Resources/complete.mp3").play();
 				timerButton.parentElement.removeChild(timerButton);
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(rows);
@@ -154,12 +154,23 @@ class BoggleGame {
 					this.#words.then((words) => {
 						if (words.has(word)) {
 							result.innerText = "";
+							const enc = encodeURIComponent(word.toLocaleLowerCase());
 							const a = document.createElement("a");
-							a.setAttribute("href", `https://scrabble.merriam.com/finder/${encodeURIComponent(word.toLocaleLowerCase())}`);
+							a.setAttribute("href", `https://scrabble.merriam.com/finder/${enc}`);
 							a.setAttribute("target", "_blank");
 							a.appendChild(document.createTextNode(word));
 							result.appendChild(a);
 							result.appendChild(document.createTextNode(" is a valid word!"));
+							const imgA = document.createElement("a");
+							imgA.setAttribute("target", "_blank");
+							imgA.setAttribute("href", `https://en.wiktionary.org/w/index.php?search=${enc}`);
+							imgA.classList.add("wiki");
+							const img = document.createElement("img");
+							img.setAttribute("src", "resources/wiktionary.png");
+							img.setAttribute("alt", "Wiktionary");
+							img.setAttribute("title", "Wiktionary");
+							imgA.appendChild(img);
+							result.appendChild(imgA);
 							result.classList.add("valid");
 						} else {
 							result.innerText = `${word} is not a valid word.`;
