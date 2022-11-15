@@ -48,6 +48,7 @@ input:not(:placeholder-shown) {
 
 .board {
 	margin: 15px;
+	display: inline-block;
 }
 
 .board > div > div {
@@ -59,6 +60,7 @@ input:not(:placeholder-shown) {
 	width: 1.5em;
 	border: 1px solid brown;
 	background-color: beige;
+	color: black;
 	margin: 2px;
 	border-radius: 4px;
 	box-shadow: 4px 4px 4px gray;
@@ -125,14 +127,14 @@ input:not(:placeholder-shown) {
 
 @keyframes flash {
 	from {
-		color: unset;
+		color: black;
 	}
 
 	10% {
-		color: transparent;
+		color: rgba(0, 0, 0, 10%);
 	}
 
 	to {
-		color: unset;
+		color: black;
 	}
 }

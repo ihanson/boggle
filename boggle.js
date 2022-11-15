@@ -80,7 +80,9 @@ class BoggleGame {
 			boardDiv.appendChild(rowDiv);
 		}
 		boardDiv.classList.add("hidden");
-		gameDiv.appendChild(boardDiv);
+		const boardContainer = document.createElement("div");
+		boardContainer.appendChild(boardDiv);
+		gameDiv.appendChild(boardContainer);
 
 		const timerButton = document.createElement("button");
 		timerButton.classList.add("timerButton");
