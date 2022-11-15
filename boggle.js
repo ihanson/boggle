@@ -155,7 +155,7 @@ class BoggleGame {
 						if (words.has(word)) {
 							result.innerText = "";
 							const a = document.createElement("a");
-							a.setAttribute("href", `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word.toLocaleLowerCase())}`);
+							a.setAttribute("href", `https://scrabble.merriam.com/finder/${encodeURIComponent(word.toLocaleLowerCase())}`);
 							a.setAttribute("target", "_blank");
 							a.appendChild(document.createTextNode(word));
 							result.appendChild(a);
