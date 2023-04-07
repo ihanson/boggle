@@ -26,8 +26,6 @@ const Dice = [
 	["O", "O", "O", "T", "T", "U"]
 ];
 
-const GameLength = 6 * 60;
-
 class BoggleGame {
 	constructor() {
 		this.#grid = new BoggleGrid();
@@ -73,7 +71,9 @@ class BoggleGame {
 	}
 
 	renderGame(gameDiv) {
-		const flat = new URLSearchParams(globalThis.location.search).has("flat");
+		const params = new URLSearchParams(globalThis.location.search);
+		const flat = params.has("flat");
+		const gameLength = params.get("time") ?? (6 * 60);
 		const boardDiv = document.createElement("div");
 		boardDiv.classList.add("board");
 		if (flat) {
@@ -104,14 +104,14 @@ class BoggleGame {
 		timerButton.classList.add("timerButton");
 		const timerDiv = document.createElement("div");
 		timerDiv.classList.add("timer");
-		const timer = new Timer(GameLength)
+		const timer = new Timer(gameLength)
 			.everySecond((time) => {
 				timerDiv.innerText = BoggleGame.#formatTime(time)
 			})
-			.at(Math.floor(GameLength / 2) + 2, () => {
+			.at(Math.floor(gameLength / 2) + 2, () => {
 				new Audio("Resources/warning.mp3").play();
 			})
-			.at(Math.floor(GameLength / 2), () => {
+			.at(Math.floor(gameLength / 2), () => {
 				boardDiv.classList.add("rotated");
 			})
 			.onComplete(() => {
