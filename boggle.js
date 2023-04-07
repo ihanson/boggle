@@ -36,17 +36,21 @@ class BoggleGame {
 				if (request.status === 200) {
 					const words = (await request.text()).trim().split(/\s+/);
 					console.log(`Loaded ${words.length.toLocaleString()} words`);
-					return words.filter((word) => word.length >= 4)
-						.filter((word) => grid.makeWord(word));
+					return [
+						words,
+						words.filter((word) => word.length >= 4)
+							.filter((word) => grid.makeWord(word))
+					];
 				} else {
 					throw new Error(await request.text());
 				}
 			}, [BoggleGrid], this.#grid.serialize()
 		);
-		this.#words = this.#worker.promise().then((words) => new Set(words)).catch((e) => {
+		this.#validWords = this.#worker.promise().then(([, validWords]) => new Set(validWords)).catch((e) => {
 			alert(`Error loading word list: ${e}`);
 		});
-		this.#words.then(() => console.log("Word search complete"));
+		this.#allWords = this.#worker.promise().then(([allWords]) => new Set(allWords));
+		this.#validWords.then(() => console.log("Word search complete"));
 	}
 
 	static #letterDiv(letter, flat) {
@@ -157,59 +161,43 @@ class BoggleGame {
 	}
 
 	#wordChecker(rows) {
+		const MinLength = 4;
 		const div = document.createElement("div");
 		const textbox = document.createElement("input");
 		const result = document.createElement("div");
 		result.classList.add("result");
 		textbox.setAttribute("placeholder", "Check a word");
-		textbox.addEventListener("input", () => {
+		textbox.addEventListener("input", async () => {
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
 			const wordPath = this.#grid.makeWord(word);
+			const isRealWord = (await this.#allWords).has(word);
+			const isLongEnough = word.length >= MinLength;
+			result.innerText = "";
+			result.classList.remove("valid");
+			for (const [y, row] of rows.entries()) {
+				for (const [x, letterDiv] of row.entries()) {
+					letterDiv.classList.toggle("selected", !!wordPath && wordPath.some(
+						([pathX, pathY]) => pathX === x && pathY === y)
+					);
+				}
+			}
 			if (!wordPath) {
-				result.innerText = `You cannot make ${word} with these letters.`;
-				result.classList.remove("valid");
-				for (const row of rows) {
-					for (const letterDiv of row) {
-						letterDiv.classList.remove("selected");
-					}
-				}
-			} else {
-				for (const [y, row] of rows.entries()) {
-					for (const [x, letterDiv] of row.entries()) {
-						letterDiv.classList.toggle("selected", wordPath.some(
-							([pathX, pathY]) => pathX === x && pathY === y)
-						);
-					}
-				}
-				if (word.length >= 4) {
-					this.#words.then((words) => {
-						if (words.has(word)) {
-							result.innerText = "";
-							const enc = encodeURIComponent(word.toLocaleLowerCase());
-							const a = document.createElement("a");
-							a.setAttribute("href", `https://scrabble.merriam.com/finder/${enc}`);
-							a.setAttribute("target", "_blank");
-							a.appendChild(document.createTextNode(word));
-							result.appendChild(a);
-							result.appendChild(document.createTextNode(" is a valid word!"));
-							const imgA = document.createElement("a");
-							imgA.setAttribute("target", "_blank");
-							imgA.setAttribute("href", `https://en.wiktionary.org/w/index.php?search=${enc}`);
-							imgA.classList.add("wiki");
-							const img = document.createElement("img");
-							img.setAttribute("src", "Resources/wiktionary.png");
-							img.setAttribute("alt", "Wiktionary");
-							img.setAttribute("title", "Wiktionary");
-							imgA.appendChild(img);
-							result.appendChild(imgA);
-							result.classList.add("valid");
-						} else {
-							result.innerText = `${word} is not a valid word.`;
-							result.classList.remove("valid");
-						}
-					});
+				if (isRealWord) {
+					result.appendChild(document.createTextNode("You cannot make "));
+					result.appendChild(BoggleGame.#dictionaryLink(word));
+					result.appendChild(document.createTextNode(" with these letters."));
+					result.appendChild(BoggleGame.#wikiLink(word));
 				} else {
-					result.innerText = "";
+					result.innerText = `You cannot make ${word} with these letters.`;
+				}
+			} else if (isLongEnough) {
+				if (isRealWord) {
+					result.appendChild(BoggleGame.#dictionaryLink(word));
+					result.appendChild(document.createTextNode(" is a valid word!"));
+					result.appendChild(BoggleGame.#wikiLink(word));
+					result.classList.add("valid");
+				} else {
+					result.innerText = `${word} is not a valid word.`;
 				}
 			}
 		});
@@ -219,7 +207,7 @@ class BoggleGame {
 	}
 
 	async #showAllWords(wordInput) {
-		const words = [...await this.#words];
+		const words = [...await this.#validWords];
 		const button = document.createElement("button");
 		button.appendChild(document.createTextNode("\xab"));
 		button.classList.add("expand");
@@ -270,9 +258,31 @@ class BoggleGame {
 		return ul;
 	}
 
+	static #dictionaryLink(word) {
+		const a = document.createElement("a");
+		a.setAttribute("href", `https://scrabble.merriam.com/finder/${encodeURIComponent(word.toLocaleLowerCase())}`);
+		a.setAttribute("target", "_blank");
+		a.appendChild(document.createTextNode(word));
+		return a;
+	}
+
+	static #wikiLink(word) {
+		const a = document.createElement("a");
+		a.setAttribute("target", "_blank");
+		a.setAttribute("href", `https://en.wiktionary.org/w/index.php?search=${encodeURIComponent(word.toLocaleLowerCase())}`);
+		a.classList.add("wiki");
+		const img = document.createElement("img");
+		img.setAttribute("src", "Resources/wiktionary.png");
+		img.setAttribute("alt", "Wiktionary");
+		img.setAttribute("title", "Wiktionary");
+		a.appendChild(img);
+		return a;
+	}
+
 	#grid;
 	#worker;
-	#words;
+	#allWords;
+	#validWords;
 }
 
 class BoggleGrid {
