@@ -39,7 +39,7 @@ a, a:visited {
 }
 
 #game, button, input {
-	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+	font-family: "Open Sans", sans-serif;
 	font-size: 16pt;
 }
 
@@ -60,6 +60,7 @@ input:not(:placeholder-shown) {
 	display: inline-flex;
 	flex-direction: column;
 	justify-content: center;
+	font-family: "Work Sans", sans-serif;
 	font-size: 48pt;
 	height: 1.5em;
 	width: 1.5em;
@@ -169,7 +170,8 @@ input:not(:placeholder-shown) {
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	font-family: 'Open Sans Extrabold', Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+	font-family: "Open Sans", sans-serif;
+	font-weight: 800;
 	color: white;
 	-webkit-text-stroke: 5px black;
 	user-select: none;
