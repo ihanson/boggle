@@ -71,6 +71,7 @@ input:not(:placeholder-shown) {
 	border-radius: 4px;
 	box-shadow: 4px 4px 4px gray;
 	user-select: none;
+	-webkit-user-select: none;
 	pointer-events: none;
 }
 
@@ -175,6 +176,7 @@ input:not(:placeholder-shown) {
 	color: white;
 	-webkit-text-stroke: 5px black;
 	user-select: none;
+	-webkit-user-select: none;
 	pointer-events: none;
 	animation-name: flash-text;
 	animation-duration: calc(var(--duration) * 1.2);
