@@ -262,6 +262,7 @@ class BoggleGame {
 		const a = document.createElement("a");
 		a.setAttribute("href", `https://scrabble.merriam.com/finder/${encodeURIComponent(word.toLocaleLowerCase())}`);
 		a.setAttribute("target", "_blank");
+		a.setAttribute("rel", "noreferrer");
 		a.appendChild(document.createTextNode(word));
 		return a;
 	}
@@ -269,6 +270,7 @@ class BoggleGame {
 	static #wikiLink(word) {
 		const a = document.createElement("a");
 		a.setAttribute("target", "_blank");
+		a.setAttribute("rel", "noreferrer");
 		a.setAttribute("href", `https://en.wiktionary.org/w/index.php?search=${encodeURIComponent(word.toLocaleLowerCase())}`);
 		a.classList.add("wiki");
 		const img = document.createElement("img");
