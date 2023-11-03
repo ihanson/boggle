@@ -72,7 +72,10 @@ input:not(:placeholder-shown) {
 	box-shadow: 4px 4px 4px gray;
 	user-select: none;
 	-webkit-user-select: none;
-	pointer-events: none;
+}
+
+.board > div > div:focus {
+	outline: 3px solid blue;
 }
 
 .board > div > div.selected {

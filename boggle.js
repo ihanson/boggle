@@ -61,6 +61,8 @@ class BoggleGame {
 			const angle = Math.floor(Math.random() * 4) * 90;
 			innerDiv.style.transform = `rotate(${angle}deg)`;
 		}
+		letterDiv.setAttribute("tabindex", "-1");
+		letterDiv.setAttribute("role", "gridcell");
 		letterDiv.setAttribute("data-letter", letter);
 		letterDiv.appendChild(innerDiv);
 		return letterDiv;
@@ -79,19 +81,28 @@ class BoggleGame {
 		const flat = params.has("flat");
 		const gameLength = params.get("time") ?? (6 * 60);
 		const boardDiv = document.createElement("div");
+		boardDiv.setAttribute("role", "grid");
 		boardDiv.classList.add("board");
 		if (flat) {
 			boardDiv.classList.add("flat");
 		}
 		const rows = this.#grid.letters.map(
-			(row) => row.map(
-				(letter) => BoggleGame.#letterDiv(letter, flat)
+			(row, y) => row.map(
+				(letter, x) => BoggleGame.#letterDiv(letter, flat)
 			)
 		);
-		for (const row of rows) {
+		rows[0][0].setAttribute("tabindex", "0");
+		const gridHandler = new GridHandler(rows);
+		let rotated = false;
+		for (const [y, row] of rows.entries()) {
 			const rowDiv = document.createElement("div");
-			for (const letterDiv of row) {
+			rowDiv.setAttribute("role", "row");
+			for (const [x, letterDiv] of row.entries()) {
 				rowDiv.appendChild(letterDiv);
+				letterDiv.addEventListener(
+					"keydown",
+					(event) => gridHandler.handleKeyDown(event, x, y, rotated)
+				);
 			}
 			boardDiv.appendChild(rowDiv);
 		}
@@ -117,6 +128,9 @@ class BoggleGame {
 			})
 			.at(Math.floor(gameLength / 2), () => {
 				boardDiv.classList.add("rotated");
+				rows[0][0].setAttribute("tabindex", "-1");
+				rows[rows.length - 1][rows[rows.length - 1].length - 1].setAttribute("tabindex", "0");
+				rotated = true;
 			})
 			.onComplete(() => {
 				new Audio("Resources/complete.mp3").play();
@@ -127,7 +141,6 @@ class BoggleGame {
 				flashText("Time!", boardContainer);
 				boardDiv.classList.add("finished");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
-
 			});
 		const startTimer = () => {
 			timer.start();
@@ -485,6 +498,56 @@ function flashText(text, target = document.body, duration = 1000, fontSize = "12
 	div.addEventListener("animationend", () => {
 		div.parentNode.removeChild(div);
 	});
+}
+
+class GridHandler {
+	constructor(rows) {
+		this.#rows = rows;
+	}
+
+	handleKeyDown(event, x, y, rotated) {
+		if (event.altKey || event.shiftKey || event.metaKey) {
+			return;
+		}
+		const newCoords = GridHandler.#nextCell(
+			rotated ? GridHandler.#reverseKey(event.key) : event.key,
+			event.ctrlKey,
+			x, y,
+			this.#rows.length,
+			this.#rows[y].length
+		);
+		if (newCoords) {
+			const [newX, newY] = newCoords;
+			this.#rows[newY][newX].focus();
+			event.preventDefault();
+		}
+	}
+
+	static #reverseKey(key) {
+		switch (key) {
+			case "ArrowLeft": return "ArrowRight";
+			case "ArrowRight": return "ArrowLeft";
+			case "ArrowUp": return "ArrowDown";
+			case "ArrowDown": return "ArrowUp";
+			case "Home": return "End";
+			case "End": return "Home";
+			default: return key;
+		}
+	}
+
+	static #nextCell(key, ctrl, x, y, numRows, numCols) {
+		switch (key) {
+			case "ArrowLeft": return [Math.max(x - 1, 0), y];
+			case "ArrowRight": return [Math.min(x + 1, numCols - 1), y];
+			case "ArrowUp": return [x, Math.max(y - 1, 0)];
+			case "ArrowDown": return [x, Math.min(y + 1, numRows - 1)];
+			case "Home": return ctrl ? [0, 0] : [0, y];
+			case "End": return ctrl ? [numCols - 1, numRows - 1] : [numCols - 1, y];
+			default: return null;
+		}
+	}
+
+	#rows
 }
 
 new BoggleGame().renderGame(document.getElementById("game"));
