@@ -51,6 +51,12 @@ class BoggleGame {
 		});
 		this.#allWords = this.#worker.promise().then(([allWords]) => new Set(allWords));
 		this.#validWords.then(() => console.log("Word search complete"));
+		this.#wakeLock = null;
+		document.addEventListener("visibilitychange", () => {
+			if (this.#wakeLock && document.visibilityState === "visible") {
+				this.#createWakeLock();
+			}
+		});
 	}
 
 	static #letterDiv(letter, flat) {
@@ -74,6 +80,26 @@ class BoggleGame {
 		}:${
 			(time % 60).toLocaleString().padStart(2, "0")
 		}`;
+	}
+
+	async #createWakeLock() {
+		if (this.#wakeLock && !this.#wakeLock.released) {
+			return;
+		}
+		if (!navigator.wakeLock) {
+			return;
+		}
+		try {
+			this.#wakeLock = await navigator.wakeLock.request();
+		} catch { }
+	}
+
+	async #releaseWaitLock() {
+		if (!this.#wakeLock) {
+			return;
+		}
+		await this.#wakeLock.release();
+		this.#wakeLock = null;
 	}
 
 	renderGame(gameDiv) {
@@ -141,13 +167,17 @@ class BoggleGame {
 				flashText("Time!", boardContainer);
 				boardDiv.classList.add("finished");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
+				this.#releaseWaitLock();
 			});
 		const startTimer = () => {
 			timer.start();
+			this.#createWakeLock();
 			timerButton.innerText = "Pause";
 			boardDiv.classList.remove("hidden");
 		};
-		const pauseTimer = () => {timer.stop();
+		const pauseTimer = () => {
+			timer.stop();
+			this.#releaseWaitLock();
 			timerButton.innerText = "Resume";
 			boardDiv.classList.add("hidden");
 		};
@@ -298,6 +328,7 @@ class BoggleGame {
 	#worker;
 	#allWords;
 	#validWords;
+	#wakeLock;
 }
 
 class BoggleGrid {
