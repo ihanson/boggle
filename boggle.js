@@ -28,7 +28,16 @@ const Dice = [
 
 class BoggleGame {
 	constructor() {
-		this.#grid = new BoggleGrid();
+		const urlParams = new URLSearchParams(globalThis.location.search);
+		this.#params = {
+			flat: urlParams.has("flat"),
+			gameLength: urlParams.get("time") ?? (6 * 60)
+		};
+		this.#grid = (
+			urlParams.has("letters") && urlParams.get("letters").length === Dice.length
+			? new BoggleGrid(BoggleGame.#letterArray(urlParams.get("letters").toLocaleUpperCase()))
+			: new BoggleGrid()
+		);
 		this.#worker = new WorkerBox(
 			async ([BoggleGrid], serial) => {
 				const grid = BoggleGrid.deserialize(serial);
@@ -57,6 +66,20 @@ class BoggleGame {
 				this.#createWakeLock();
 			}
 		});
+	}
+
+	static #letterArray(letters) {
+		const rows = [];
+		const size = Math.sqrt(letters.length);
+		for (let y = 0; y < size; y++) {
+			const row = []
+			for (let x = 0; x < size; x++) {
+				const letter = letters[y * size + x];
+				row.push(letter === "Q" ? "Qu" : letter);
+			}
+			rows.push(row);
+		}
+		return rows;
 	}
 
 	static #letterDiv(letter, flat) {
@@ -103,18 +126,15 @@ class BoggleGame {
 	}
 
 	renderGame(gameDiv) {
-		const params = new URLSearchParams(globalThis.location.search);
-		const flat = params.has("flat");
-		const gameLength = params.get("time") ?? (6 * 60);
 		const boardDiv = document.createElement("div");
 		boardDiv.setAttribute("role", "grid");
 		boardDiv.classList.add("board");
-		if (flat) {
+		if (this.#params.flat) {
 			boardDiv.classList.add("flat");
 		}
 		const rows = this.#grid.letters.map(
-			(row, y) => row.map(
-				(letter, x) => BoggleGame.#letterDiv(letter, flat)
+			(row) => row.map(
+				(letter) => BoggleGame.#letterDiv(letter, this.#params.flat)
 			)
 		);
 		rows[0][0].setAttribute("tabindex", "0");
@@ -145,14 +165,14 @@ class BoggleGame {
 		timerButton.classList.add("timerButton");
 		const timerDiv = document.createElement("div");
 		timerDiv.classList.add("timer");
-		const timer = new Timer(gameLength)
+		const timer = new Timer(this.#params.gameLength)
 			.everySecond((time) => {
 				timerDiv.innerText = BoggleGame.#formatTime(time)
 			})
-			.at(Math.floor(gameLength / 2) + 2, () => {
+			.at(Math.floor(this.#params.gameLength / 2) + 2, () => {
 				new Audio("Resources/warning.mp3").play();
 			})
-			.at(Math.floor(gameLength / 2), () => {
+			.at(Math.floor(this.#params.gameLength / 2), () => {
 				boardDiv.classList.add("rotated");
 				rows[0][0].setAttribute("tabindex", "-1");
 				rows[rows.length - 1][rows[rows.length - 1].length - 1].setAttribute("tabindex", "0");
@@ -184,11 +204,13 @@ class BoggleGame {
 		startButton.addEventListener("click", async () => {
 			const time = 1000;
 			startButton.style.visibility = "hidden";
-			for (let count = 3; count > 0; count--) {
-				flashText(count.toLocaleString(), boardContainer, time, "200pt");
-				await sleep(time);
+			if (this.#params.gameLength > 0) {
+				for (let count = 3; count > 0; count--) {
+					flashText(count.toLocaleString(), boardContainer, time, "200pt");
+					await sleep(time);
+				}
+				await sleep(time * 0.1);
 			}
-			await sleep(time * 0.1);
 			startButton.parentNode.replaceChild(timerButton, startButton);
 			startTimer();
 		});
@@ -324,6 +346,7 @@ class BoggleGame {
 		return a;
 	}
 
+	#params;
 	#grid;
 	#worker;
 	#allWords;
@@ -465,7 +488,7 @@ class Timer {
 		for (const callback of this.#at.get(this.#time) ?? []) {
 			callback.call(null);
 		}
-		if (this.#time === 0) {
+		if (this.#time <= 0) {
 			for (const callback of this.#onComplete) {
 				callback.call(null);
 			}
