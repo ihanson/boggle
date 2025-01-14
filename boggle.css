@@ -82,10 +82,6 @@ input:not(:placeholder-shown) {
 	background-color: yellow;
 }
 
-.board.hidden > div > div {
-	color: transparent;
-}
-
 .board.flat > div > div[data-letter="M"],
 .board.flat > div > div[data-letter="W"],
 .board.flat > div > div[data-letter="Z"] {

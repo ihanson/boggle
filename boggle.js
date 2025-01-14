@@ -82,21 +82,6 @@ class BoggleGame {
 		return rows;
 	}
 
-	static #letterDiv(letter, flat) {
-		const letterDiv = document.createElement("div");
-		const innerDiv = document.createElement("div");
-		innerDiv.appendChild(document.createTextNode(letter));
-		if (flat) {
-			const angle = Math.floor(Math.random() * 4) * 90;
-			innerDiv.style.transform = `rotate(${angle}deg)`;
-		}
-		letterDiv.setAttribute("tabindex", "-1");
-		letterDiv.setAttribute("role", "gridcell");
-		letterDiv.setAttribute("data-letter", letter);
-		letterDiv.appendChild(innerDiv);
-		return letterDiv;
-	}
-
 	static #formatTime(time) {
 		return `${
 			Math.floor(time / 60).toLocaleString()
@@ -126,37 +111,8 @@ class BoggleGame {
 	}
 
 	renderGame(gameDiv) {
-		const boardDiv = document.createElement("div");
-		boardDiv.setAttribute("role", "grid");
-		boardDiv.classList.add("board");
-		if (this.#params.flat) {
-			boardDiv.classList.add("flat");
-		}
-		const rows = this.#grid.letters.map(
-			(row) => row.map(
-				(letter) => BoggleGame.#letterDiv(letter, this.#params.flat)
-			)
-		);
-		rows[0][0].setAttribute("tabindex", "0");
-		const gridHandler = new GridHandler(rows);
-		let rotated = false;
-		for (const [y, row] of rows.entries()) {
-			const rowDiv = document.createElement("div");
-			rowDiv.setAttribute("role", "row");
-			for (const [x, letterDiv] of row.entries()) {
-				rowDiv.appendChild(letterDiv);
-				letterDiv.addEventListener(
-					"keydown",
-					(event) => gridHandler.handleKeyDown(event, x, y, rotated)
-				);
-			}
-			boardDiv.appendChild(rowDiv);
-		}
-		boardDiv.classList.add("hidden");
-		const boardContainer = document.createElement("div");
-		boardContainer.classList.add("boardContainer");
-		boardContainer.appendChild(boardDiv);
-		gameDiv.appendChild(boardContainer);
+		const domGrid = new DOMGrid(this.#grid, this.#params.flat);
+		domGrid.renderTo(gameDiv);
 
 		const startButton = document.createElement("button");
 		startButton.classList.add("timerButton");
@@ -173,19 +129,16 @@ class BoggleGame {
 				new Audio("Resources/warning.mp3").play();
 			})
 			.at(Math.floor(this.#params.gameLength / 2), () => {
-				boardDiv.classList.add("rotated");
-				rows[0][0].setAttribute("tabindex", "-1");
-				rows[rows.length - 1][rows[rows.length - 1].length - 1].setAttribute("tabindex", "0");
-				rotated = true;
+				domGrid.setRotated();
 			})
 			.onComplete(() => {
 				new Audio("Resources/complete.mp3").play();
 				timerButton.parentElement.removeChild(timerButton);
 				timerDiv.parentElement.removeChild(timerDiv);
-				const [wordChecker, wordInput] = this.#wordChecker(rows);
+				const [wordChecker, wordInput] = this.#wordChecker(domGrid);
 				gameDiv.appendChild(wordChecker);
-				flashText("Time!", boardContainer);
-				boardDiv.classList.add("finished");
+				domGrid.flashText("Time!");
+				domGrid.setFinished();
 				setTimeout(() => this.#showAllWords(wordInput), 0);
 				this.#releaseWaitLock();
 			});
@@ -193,20 +146,20 @@ class BoggleGame {
 			timer.start();
 			this.#createWakeLock();
 			timerButton.innerText = "Pause";
-			boardDiv.classList.remove("hidden");
+			domGrid.showLetters();
 		};
 		const pauseTimer = () => {
 			timer.stop();
 			this.#releaseWaitLock();
 			timerButton.innerText = "Resume";
-			boardDiv.classList.add("hidden");
+			domGrid.hideLetters();
 		};
 		startButton.addEventListener("click", async () => {
 			const time = 1000;
 			startButton.style.visibility = "hidden";
 			if (this.#params.gameLength > 0) {
 				for (let count = 3; count > 0; count--) {
-					flashText(count.toLocaleString(), boardContainer, time, "200pt");
+					domGrid.flashText(count.toLocaleString(), time, "200pt");
 					await sleep(time);
 				}
 				await sleep(time * 0.1);
@@ -225,7 +178,7 @@ class BoggleGame {
 		gameDiv.appendChild(timerDiv);
 	}
 
-	#wordChecker(rows) {
+	#wordChecker(domGrid) {
 		const MinLength = 4;
 		const div = document.createElement("div");
 		const textbox = document.createElement("input");
@@ -239,13 +192,7 @@ class BoggleGame {
 			const isLongEnough = word.length >= MinLength;
 			result.innerText = "";
 			result.classList.remove("valid");
-			for (const [y, row] of rows.entries()) {
-				for (const [x, letterDiv] of row.entries()) {
-					letterDiv.classList.toggle("selected", !!wordPath && wordPath.some(
-						([pathX, pathY]) => pathX === x && pathY === y)
-					);
-				}
-			}
+			domGrid.selectPath(wordPath);
 			if (!wordPath) {
 				if (isRealWord) {
 					result.appendChild(document.createTextNode("You cannot make "));
@@ -352,6 +299,116 @@ class BoggleGame {
 	#allWords;
 	#validWords;
 	#wakeLock;
+}
+
+class DOMGrid {
+	constructor(grid, flat) {
+		this.#boardDiv = document.createElement("div");
+		this.#boardDiv.setAttribute("role", "grid");
+		this.#boardDiv.classList.add("board");
+		if (flat) {
+			this.#boardDiv.classList.add("flat");
+		}
+		this.#rows = grid.letters.map(
+			(row) => row.map((letter) => ({
+				div: DOMGrid.#letterDiv(flat),
+				letter
+			}))
+		);
+		this.#rows[0][0].div.setAttribute("tabindex", "0");
+		const gridHandler = new GridHandler(this.#rows);
+		for (const [y, row] of this.#rows.entries()) {
+			const rowDiv = document.createElement("div");
+			rowDiv.setAttribute("role", "row");
+			for (const [x, {div}] of row.entries()) {
+				rowDiv.appendChild(div);
+				div.addEventListener(
+					"keydown",
+					(event) => gridHandler.handleKeyDown(event, x, y, this.#rotated)
+				);
+			}
+			this.#boardDiv.appendChild(rowDiv);
+		}
+		
+		this.#boardContainer = document.createElement("div");
+		this.#boardContainer.classList.add("boardContainer");
+		this.#boardContainer.appendChild(this.#boardDiv);
+	}
+
+	renderTo(target) {
+		target.appendChild(this.#boardContainer);
+	}
+
+	setRotated() {
+		this.#boardDiv.classList.add("rotated");
+		this.#rows[0][0].div.setAttribute("tabindex", "-1");
+		const lastRow = this.#rows.length - 1;
+		const lastCol = this.#rows[lastRow].length -1;
+		this.#rows[lastRow][lastCol].div.setAttribute("tabindex", "0");
+		this.#rotated = true;
+	}
+
+	showLetters() {
+		for (const row of this.#rows) {
+			for (const {letter, div} of row) {
+				div.firstChild.innerText = letter;
+			}
+		}
+	}
+
+	hideLetters() {
+		for (const row of this.#rows) {
+			for (const {div} of row) {
+				div.firstChild.innerText = "";
+			}
+		}
+	}
+
+	selectPath(wordPath) {
+		for (const [y, row] of this.#rows.entries()) {
+			for (const [x, {div}] of row.entries()) {
+				div.classList.toggle("selected", !!wordPath && wordPath.some(
+					([pathX, pathY]) => pathX === x && pathY === y)
+				);
+			}
+		}
+	}
+	
+	flashText(text, duration = 1000, fontSize = "120pt") {
+		const div = document.createElement("div");
+		div.classList.add("flash");
+		div.style.setProperty("--duration", `${duration / 1000}s`);
+		const textDiv = document.createElement("div");
+		textDiv.appendChild(document.createTextNode(text));
+		textDiv.style.fontSize = fontSize;
+		div.appendChild(textDiv);
+		this.#boardContainer.appendChild(div);
+		div.addEventListener("animationend", () => {
+			div.parentNode.removeChild(div);
+		});
+	}
+
+	setFinished() {
+		this.#boardDiv.classList.add("finished");
+	}
+
+	static #letterDiv(flat) {
+		const letterDiv = document.createElement("div");
+		const innerDiv = document.createElement("div");
+		if (flat) {
+			const angle = Math.floor(Math.random() * 4) * 90;
+			innerDiv.style.transform = `rotate(${angle}deg)`;
+		}
+		letterDiv.setAttribute("tabindex", "-1");
+		letterDiv.setAttribute("role", "gridcell");
+		letterDiv.appendChild(innerDiv);
+		return letterDiv;
+	}
+
+	#boardContainer;
+	#boardDiv;
+	#rows;
+	#rotated = false;
 }
 
 class BoggleGrid {
@@ -540,20 +597,6 @@ function sleep(time) {
 	return new Promise((resolve) => setTimeout(() => resolve(), time));
 }
 
-function flashText(text, target = document.body, duration = 1000, fontSize = "120pt") {
-	const div = document.createElement("div");
-	div.classList.add("flash");
-	div.style.setProperty("--duration", `${duration / 1000}s`);
-	const textDiv = document.createElement("div");
-	textDiv.appendChild(document.createTextNode(text));
-	textDiv.style.fontSize = fontSize;
-	div.appendChild(textDiv);
-	target.appendChild(div);
-	div.addEventListener("animationend", () => {
-		div.parentNode.removeChild(div);
-	});
-}
-
 class GridHandler {
 	constructor(rows) {
 		this.#rows = rows;
@@ -572,7 +615,7 @@ class GridHandler {
 		);
 		if (newCoords) {
 			const [newX, newY] = newCoords;
-			this.#rows[newY][newX].focus();
+			this.#rows[newY][newX].div.focus();
 			event.preventDefault();
 		}
 	}
