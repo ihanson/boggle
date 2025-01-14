@@ -137,6 +137,38 @@ input:not(:placeholder-shown) {
 	vertical-align: calc(-12px * var(--scale-factor));
 }
 
+.definition {
+	width: 60%;
+	margin-top: 0.5em;
+	margin-left: 20%;
+	text-align: left;
+	background-color: azure;
+}
+
+.definition:not(:empty) {
+	border: 1px solid gray;
+}
+
+.definition h1 {
+	font-size: 0.8em;
+	line-height: 100%;
+	margin: 0;
+	font-weight: normal;
+	font-style: italic;
+}
+
+.definition .see {
+	font-style: italic;
+}
+
+.definition h1:not(:first-child) {
+	margin-top: 0.5em;
+}
+
+.definition div {
+	margin-left: 1em;
+}
+
 .word {
 	border: none;
 	background: none;

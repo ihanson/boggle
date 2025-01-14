@@ -184,6 +184,7 @@ class BoggleGame {
 
 	#wordChecker(domGrid) {
 		const MinLength = 4;
+		const collinsThrottle = new Throttle(1000);
 		const div = document.createElement("div");
 		const textbox = document.createElement("input");
 		const result = document.createElement("div");
@@ -192,22 +193,25 @@ class BoggleGame {
 		textbox.addEventListener("input", async () => {
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
 			const wordPath = this.#grid.makeWord(word);
-			const isRealWord = (await this.#allWords).has(word);
-			const isLongEnough = word.length >= MinLength;
-			result.innerText = "";
-			result.classList.remove("valid");
 			domGrid.selectPath(wordPath);
-			if (!wordPath) {
-				if (isRealWord) {
-					result.appendChild(document.createTextNode("You cannot make "));
-					result.appendChild(BoggleGame.#dictionaryLink(word));
-					result.appendChild(document.createTextNode(" with these letters."));
-					result.appendChild(BoggleGame.#wikiLink(word));
-				} else {
-					result.innerText = `You cannot make ${word} with these letters.`;
-				}
-			} else if (isLongEnough) {
-				if (isRealWord) {
+			result.innerText = "";
+			if (word.length < MinLength) {
+				return;
+			}
+			result.classList.remove("valid");
+			try {
+				const lookupPromise = this.collinsResult(word, collinsThrottle);
+				const isRealWord = (await this.#allWords).has(word) || (await lookupPromise).success;
+				if (!wordPath) {
+					if (isRealWord) {
+						result.appendChild(document.createTextNode("You cannot make "));
+						result.appendChild(BoggleGame.#dictionaryLink(word));
+						result.appendChild(document.createTextNode(" with these letters."));
+						result.appendChild(BoggleGame.#wikiLink(word));
+					} else {
+						result.innerText = `You cannot make ${word} with these letters.`;
+					}
+				} else if (isRealWord) {
 					result.appendChild(BoggleGame.#dictionaryLink(word));
 					result.appendChild(document.createTextNode(" is a valid word!"));
 					result.appendChild(BoggleGame.#wikiLink(word));
@@ -215,6 +219,16 @@ class BoggleGame {
 				} else {
 					result.innerText = `${word} is not a valid word.`;
 				}
+				if (wordPath && isRealWord) {
+					const lookupResult = await lookupPromise;					if (lookupResult.from) {
+						result.appendChild(BoggleGame.#definitionElement(lookupResult.from));
+						result.appendChild(BoggleGame.#definitionElement(lookupResult));
+					} else {
+						result.appendChild(BoggleGame.#definitionElement(lookupResult));
+					}
+				}
+			} catch (e) {
+				console.error(e);
 			}
 		});
 		div.appendChild(textbox);
@@ -248,6 +262,28 @@ class BoggleGame {
 		}
 	}
 
+	async collinsResult(word, throttle = new Throttle(0)) {
+		if (this.#lookupResults.has(word)) {
+			return this.#lookupResults.get(word);
+		}
+		const url = `https://scrabblechecker.collinsdictionary.com/check/api/index.php?key=${encodeURIComponent(word.toLocaleLowerCase())}`;
+		return throttle.maybeDoTask(async () => {
+			const request = await fetch(url)
+			if (request.status !== 200) {
+				throw new Error(await request.text());
+			}
+			const result = await request.json();
+			const resolvedResult = result.data?.see
+				? {
+					from: result,
+					...await this.collinsResult(result.data.definition)
+				}
+				: result;
+			this.#lookupResults.set(word, resolvedResult);
+			return resolvedResult;
+		});
+	}
+
 	static #group(list, groupBy) {
 		const map = new Map();
 		for (const item of list) {
@@ -276,7 +312,7 @@ class BoggleGame {
 
 	static #dictionaryLink(word) {
 		const a = document.createElement("a");
-		a.setAttribute("href", `https://scrabble.merriam.com/finder/${encodeURIComponent(word.toLocaleLowerCase())}`);
+		a.setAttribute("href", `https://www.collinsdictionary.com/dictionary/english/${encodeURIComponent(word.toLocaleLowerCase())}`);
 		a.setAttribute("target", "_blank");
 		a.setAttribute("rel", "noreferrer");
 		a.appendChild(document.createTextNode(word));
@@ -297,11 +333,44 @@ class BoggleGame {
 		return a;
 	}
 
+	static #definitionElement(lookupResult) {
+		const container = document.createElement("div");
+		container.classList.add("definition");
+		if (lookupResult.data?.see) {
+			const seeSpan = document.createElement("span");
+			seeSpan.classList.add("see");
+			seeSpan.appendChild(document.createTextNode(`${lookupResult.data.see} `));
+			container.appendChild(seeSpan);
+			const defSpan = document.createElement("span");
+			defSpan.appendChild(document.createTextNode(lookupResult.data.definition));
+			container.appendChild(defSpan);
+		} else if (lookupResult.success) {
+			const partsOfSpeech = lookupResult.data.posp.split("###");
+			const definitions = lookupResult.data.definition.split("###");
+			for (let i = 0; i < definitions.length; i++) {
+				const partOfSpeech = partsOfSpeech[i];
+				const definition = definitions[i];
+				if (partOfSpeech) {
+					const header = document.createElement("h1");
+					header.appendChild(document.createTextNode(partOfSpeech));
+					container.appendChild(header);
+				}
+				if (definition) {
+					const defDiv = document.createElement("div");
+					defDiv.appendChild(document.createTextNode(definition));
+					container.appendChild(defDiv);
+				}
+			}
+		}
+		return container;
+	}
+
 	#params;
 	#grid;
 	#worker;
 	#allWords;
 	#validWords;
+	#lookupResults = new Map();
 	#wakeLock;
 }
 
@@ -562,6 +631,43 @@ class Timer {
 	#at
 	#onComplete
 	#interval
+}
+
+class Throttle {
+	constructor(milliseconds) {
+		this.#milliseconds = milliseconds;
+	}
+
+	maybeDoTask(task) {
+		const now = performance.now();
+		if (this.#currentTimeout !== null) {
+			clearTimeout(this.#currentTimeout);
+			this.#currentTimeout = null;
+		}
+		const waitTime = this.#lastEventTime === null
+			? 0
+			: Math.max(this.#milliseconds - (now - this.#lastEventTime), 0);
+		let resolve;
+		const promise = new Promise((r) => {
+			resolve = r;
+		});
+		const thisTimeout = setTimeout(async () => {
+			if (this.#currentTimeout === thisTimeout) {
+				this.#lastEventTime = performance.now();
+				const result = await task.call();
+				if (this.#currentTimeout === thisTimeout) {
+					this.#currentTimeout = null;
+					resolve(result);
+				}
+			}
+		}, waitTime);
+		this.#currentTimeout = thisTimeout;
+		return promise;
+	}
+
+	#milliseconds;
+	#currentTimeout = null;
+	#lastEventTime = null;
 }
 
 class WorkerBox {
