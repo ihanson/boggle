@@ -146,6 +146,10 @@ class BoggleGame {
 				setTimeout(() => this.#showAllWords(wordInput), 0);
 				this.#releaseWaitLock();
 			});
+		const tick = new Audio("Resources/tick.wav");
+		for (let second = 1; second <= 10; second++) {
+			timer.at(second, () => tick.play());
+		}
 		const startTimer = () => {
 			timer.start();
 			this.#createWakeLock();
@@ -766,3 +770,10 @@ class GridHandler {
 }
 
 new BoggleGame().renderGame(document.getElementById("game"));
+
+/**
+ * Sounds:
+ *   https://pixabay.com/sound-effects/ticking-stopwatch-dry-103837/
+ *   https://pixabay.com/sound-effects/marimba-lose-250960/
+ *   https://pixabay.com/sound-effects/game-level-complete-143022/
+ */
