@@ -26,6 +26,8 @@ const Dice = [
 	["O", "O", "O", "T", "T", "U"]
 ];
 
+const WordListURL = "https://raw.githubusercontent.com/wordnik/wordlist/refs/heads/main/wordlist-20210729.txt";
+
 class BoggleGame {
 	constructor() {
 		const urlParams = new URLSearchParams(globalThis.location.search);
@@ -39,11 +41,13 @@ class BoggleGame {
 			: new BoggleGrid()
 		);
 		this.#worker = new WorkerBox(
-			async ([BoggleGrid], serial) => {
+			async ([BoggleGrid, WordListURL], serial) => {
 				const grid = BoggleGrid.deserialize(serial);
-				const request = await fetch("https://raw.githubusercontent.com/redbo/scrabble/master/dictionary.txt");
+				const request = await fetch(WordListURL);
 				if (request.status === 200) {
-					const words = (await request.text()).trim().split(/\s+/);
+					const words = (await request.text())
+						.trim().split(/\s+/)
+						.map((wordJSON) => JSON.parse(wordJSON).toLocaleUpperCase());
 					console.log(`Loaded ${words.length.toLocaleString()} words`);
 					return [
 						words,
@@ -53,7 +57,7 @@ class BoggleGame {
 				} else {
 					throw new Error(await request.text());
 				}
-			}, [BoggleGrid], this.#grid.serialize()
+			}, [BoggleGrid, WordListURL], this.#grid.serialize()
 		);
 		this.#validWords = this.#worker.promise().then(([, validWords]) => new Set(validWords)).catch((e) => {
 			alert(`Error loading word list: ${e}`);
@@ -571,7 +575,7 @@ class WorkerBox {
 				}
 			});
 		};
-		const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => v.toString()).join(",")}]);`;
+		const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => WorkerBox.#stringify(v)).join(",")}]);`;
 		this.#worker = new Worker(`data:application/javascript,${encodeURIComponent(script)}`);
 		this.#promise = new Promise((resolve, reject) => {
 			this.#worker.addEventListener("message", ({data}) => {
@@ -587,6 +591,14 @@ class WorkerBox {
 
 	promise() {
 		return this.#promise;
+	}
+
+	static #stringify(object) {
+		return (
+			object instanceof Function
+				? object.toString()
+				: JSON.stringify(object)
+		);
 	}
 
 	#worker;
