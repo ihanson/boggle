@@ -467,11 +467,11 @@ class Timer {
 
 	start() {
 		this.stop();
-		this.#handleSecond();
 		this.#interval = setInterval(() => {
 			this.#time--;
 			this.#handleSecond();
 		}, 1000);
+		this.#handleSecond();
 	}
 
 	stop() {
