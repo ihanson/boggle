@@ -224,7 +224,8 @@ class BoggleGame {
 					result.innerText = `${word} is not a valid word.`;
 				}
 				if (wordPath && isRealWord) {
-					const lookupResult = await lookupPromise;					if (lookupResult.from) {
+					const lookupResult = await lookupPromise;
+					if (lookupResult.from) {
 						result.appendChild(BoggleGame.#definitionElement(lookupResult.from));
 						result.appendChild(BoggleGame.#definitionElement(lookupResult));
 					} else {
@@ -350,7 +351,7 @@ class BoggleGame {
 			container.appendChild(defSpan);
 		} else if (lookupResult.success) {
 			const partsOfSpeech = lookupResult.data.posp.split("###");
-			const definitions = lookupResult.data.definition.split("###");
+			const definitions = lookupResult.data.complete_definition.split("###");
 			for (let i = 0; i < definitions.length; i++) {
 				const partOfSpeech = partsOfSpeech[i];
 				const definition = definitions[i];
