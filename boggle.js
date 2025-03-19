@@ -125,6 +125,8 @@ class BoggleGame {
 		timerButton.classList.add("timerButton");
 		const timerDiv = document.createElement("div");
 		timerDiv.classList.add("timer");
+		const silence = new Audio("Resources/silence.mp3");
+		silence.loop = true;
 		const timer = new Timer(this.#params.gameLength)
 			.everySecond((time) => {
 				timerDiv.innerText = BoggleGame.#formatTime(time)
@@ -137,6 +139,7 @@ class BoggleGame {
 			})
 			.onComplete(() => {
 				new Audio("Resources/complete.mp3").play();
+				silence.pause();
 				timerButton.parentElement.removeChild(timerButton);
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(domGrid);
@@ -152,12 +155,14 @@ class BoggleGame {
 		}
 		const startTimer = () => {
 			timer.start();
+			silence.play();
 			this.#createWakeLock();
 			timerButton.innerText = "Pause";
 			domGrid.showLetters();
 		};
 		const pauseTimer = () => {
 			timer.stop();
+			silence.pause();
 			this.#releaseWaitLock();
 			timerButton.innerText = "Resume";
 			domGrid.hideLetters();
