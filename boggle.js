@@ -336,7 +336,7 @@ class BoggleGame {
 		a.setAttribute("href", `https://en.wiktionary.org/w/index.php?search=${encodeURIComponent(word.toLocaleLowerCase())}`);
 		a.classList.add("wiki");
 		const img = document.createElement("img");
-		img.setAttribute("src", "Resources/wiktionary.png");
+		img.setAttribute("src", "Resources/wiktionary.svg");
 		img.setAttribute("alt", "Wiktionary");
 		img.setAttribute("title", "Wiktionary");
 		a.appendChild(img);
@@ -782,4 +782,7 @@ new BoggleGame().renderGame(document.getElementById("game"));
  *   https://pixabay.com/sound-effects/ticking-stopwatch-dry-103837/
  *   https://pixabay.com/sound-effects/marimba-lose-250960/
  *   https://pixabay.com/sound-effects/game-level-complete-143022/
+ * 
+ * Icon:
+ *   https://commons.wikimedia.org/wiki/File:Wiktfavicon_en.svg
  */

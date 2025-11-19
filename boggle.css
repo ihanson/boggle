@@ -132,9 +132,9 @@ input:not(:placeholder-shown) {
 }
 
 .result > a.wiki > img {
-	--scale-factor: 0.5;
-	height: calc(48px * var(--scale-factor));
-	vertical-align: calc(-12px * var(--scale-factor));
+	--scale-factor: 1.5;
+	height: calc(var(--scale-factor) * 1cap);
+	vertical-align: calc((var(--scale-factor) - 1) / 2 * -1cap);
 }
 
 .definition {
