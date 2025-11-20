@@ -258,8 +258,9 @@ class BoggleGame {
 		button.addEventListener("click", () => {
 			button.parentElement.removeChild(button);
 			document.getElementById("container").classList.add("showReveal");
+			document.getElementById("reveal").scroll({behavior: "instant", top: 0, left: 0});
 		});
-		document.getElementById("game").appendChild(button);
+		document.getElementById("container").appendChild(button);
 		const callback = (/** @type {string} */ word) => {
 			wordInput.value = word;
 			wordInput.dispatchEvent(new Event("input"));
