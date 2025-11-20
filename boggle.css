@@ -5,6 +5,7 @@ html, body {
 
 a, a:visited {
 	color: #06c;
+	text-decoration: underline 0.075em;
 }
 
 #container {
@@ -173,10 +174,9 @@ input:not(:placeholder-shown) {
 	border: none;
 	background: none;
 	cursor: pointer;
-}
-
-.word:hover {
-	text-decoration: underline;
+	&:hover {
+		text-decoration: underline 0.075em;
+	}
 }
 
 @keyframes flash {
