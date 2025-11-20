@@ -31,13 +31,18 @@ const WordListURL = "https://raw.githubusercontent.com/wordnik/wordlist/refs/hea
 /**
  * @typedef BoggleGameParams
  * @property {number} gameLength
- * @property {BoggleGrid} grid
+ * @property {string[][]} grid
  */
 /** @typedef {typeof BoggleGrid} BoggleGridClass */
 
 class BoggleGame {
-	constructor(/** @type {BoggleGameParams} */ params) {
+	constructor(
+		/** @type {BoggleGameParams} */ params,
+		startTime = params.gameLength
+	) {
 		this.#params = params;
+		this.#grid = new BoggleGrid(params.grid);
+		this.#startTime = startTime;
 		this.#worker = new WorkerBox(
 			async (
 				/** @type {[BoggleGridClass, string]} */ [BoggleGrid, WordListURL],
@@ -58,7 +63,7 @@ class BoggleGame {
 				} else {
 					throw new Error(await request.text());
 				}
-			}, [BoggleGrid, WordListURL], this.#params.grid.serialize()
+			}, [BoggleGrid, WordListURL], this.#grid.serialize()
 		);
 		this.#validWords = this.#worker.promise().then(([, validWords]) => new Set(validWords)).catch((e) => {
 			alert(`Error loading word list: ${e}`);
@@ -108,7 +113,7 @@ class BoggleGame {
 		/** @type {HTMLElement} */ gameDiv,
 		/** @type {boolean} */ flat
 	) {
-		const domGrid = new DOMGrid(this.#params.grid, flat);
+		const domGrid = new DOMGrid(this.#grid, flat, this.#startTime <= this.#params.gameLength / 2);
 		domGrid.renderTo(gameDiv);
 
 		const startButton = document.createElement("button");
@@ -120,9 +125,10 @@ class BoggleGame {
 		timerDiv.classList.add("timer");
 		const silence = new Audio("Resources/silence.mp3");
 		silence.loop = true;
-		const timer = new Timer(this.#params.gameLength)
+		const timer = new Timer(this.#startTime)
 			.everySecond((/** @type {number} */ time) => {
-				timerDiv.innerText = BoggleGame.#formatTime(time)
+				timerDiv.innerText = BoggleGame.#formatTime(time);
+				globalThis.localStorage.setItem("currentGameTime", JSON.stringify(time));
 			})
 			.at(Math.floor(this.#params.gameLength / 2) + 2, () => {
 				new Audio("Resources/warning.mp3").play();
@@ -139,6 +145,8 @@ class BoggleGame {
 				gameDiv.appendChild(wordChecker);
 				domGrid.flashText("Time!");
 				domGrid.setFinished();
+				globalThis.localStorage.removeItem("currentGame");
+				globalThis.localStorage.removeItem("currentGameTime");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
 				this.#releaseWaitLock();
 			});
@@ -170,6 +178,8 @@ class BoggleGame {
 				}
 				await sleep(time * 0.1);
 			}
+			globalThis.localStorage.setItem("currentGame", JSON.stringify(this.#params));
+			globalThis.localStorage.setItem("currentGameTime", JSON.stringify(this.#params.gameLength));
 			startButton.parentNode.replaceChild(timerButton, startButton);
 			startTimer();
 		});
@@ -195,7 +205,7 @@ class BoggleGame {
 		textbox.setAttribute("placeholder", "Check a word");
 		textbox.addEventListener("input", async () => {
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
-			const wordPath = this.#params.grid.makeWord(word);
+			const wordPath = this.#grid.makeWord(word);
 			domGrid.selectPath(wordPath);
 			result.innerText = "";
 			if (word.length < MinLength) {
@@ -397,6 +407,8 @@ class BoggleGame {
 	}
 
 	#params;
+	#grid;
+	#startTime;
 	/** @type {WorkerBox<[BoggleGridClass, string], string, [string[], string[]]>} */
 	#worker;
 	#allWords;
@@ -409,7 +421,8 @@ class BoggleGame {
 class DOMGrid {
 	constructor(
 		/** @type {BoggleGrid} */ grid,
-		/** @type {boolean} */ flat
+		/** @type {boolean} */ flat,
+		/** @type {boolean} */ rotated=false
 	) {
 		this.#boardDiv = document.createElement("div");
 		this.#boardDiv.setAttribute("role", "grid");
@@ -441,6 +454,9 @@ class DOMGrid {
 		this.#boardContainer = document.createElement("div");
 		this.#boardContainer.classList.add("boardContainer");
 		this.#boardContainer.appendChild(this.#boardDiv);
+		if (rotated) {
+			this.setRotated();
+		}
 	}
 
 	renderTo(/** @type {HTMLElement} */ target) {
@@ -549,7 +565,7 @@ class BoggleGrid {
 			}
 			rows.push(row);
 		}
-		return new BoggleGrid(rows);
+		return rows;
 	}
 
 	static fromDice(/** @type {string[][]} */ diceSource) {
@@ -561,7 +577,7 @@ class BoggleGrid {
 		for (let row = 0; row < size; row++) {
 			rows.push(letters.slice(row * size, (row + 1) * size));
 		}
-		return new BoggleGrid(rows);
+		return rows
 	}
 
 	/** @template T */
@@ -582,7 +598,7 @@ class BoggleGrid {
 	makeWord(/** @type {string} */ word) {
 		const wordArr = [...word]
 		for (const [rowIndex, row] of this.letters.entries()) {
-			for (const [colIndex, letter] of row.entries()) {
+			for (const [colIndex] of row.entries()) {
 				const result = this.#makeWordHelper(wordArr, colIndex, rowIndex, []);
 				if (result) {
 					return result;
@@ -877,15 +893,24 @@ class GridHandler {
 }
 
 {
+	/** @returns {BoggleGameParams} */
+	function parseParams(/** @type {string} */ paramStr) {
+		return JSON.parse(paramStr);
+	}
 	const urlParams = new URLSearchParams(globalThis.location.search);
-	new BoggleGame({
+	const currentGame = globalThis.localStorage.getItem("currentGame");
+	const currentGameTime = globalThis.localStorage.getItem("currentGameTime");
+	const params = currentGame ? parseParams(currentGame) : {
 		gameLength: Number(urlParams.get("time")) ?? (6 * 60),
 		grid: (
 			urlParams.has("letters")
 			? BoggleGrid.fromString(urlParams.get("letters").toLocaleUpperCase())
 			: BoggleGrid.fromDice(BigBoggleDice)
 		)
-	}).renderGame(document.getElementById("game"), urlParams.has("flat"));
+	};
+	const startTime = currentGameTime ? JSON.parse(currentGameTime) : params.gameLength;
+	const game = new BoggleGame(params, startTime);
+	game.renderGame(document.getElementById("game"), urlParams.has("flat"));
 }
 
 /**
