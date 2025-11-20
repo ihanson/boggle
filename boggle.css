@@ -18,6 +18,7 @@ a, a:visited {
 	text-align: center;
 	flex: 4;
 	position: relative;
+	padding-bottom: 2em;
 }
 
 .expand {
@@ -121,11 +122,13 @@ input:not(:placeholder-shown) {
 }
 
 .result:not(:empty).valid::before {
-	content: "\2714\fe0f  ";
+	content: "\2714\fe0f";
+	padding-right: 0.5ex;
 }
 
 .result:not(:empty):not(.valid)::before {
-	content: "\274c ";
+	content: "\274c";
+	padding-right: 0.5ex;
 }
 
 .result > a.wiki {
