@@ -111,7 +111,8 @@ class BoggleGame {
 
 	renderGame(
 		/** @type {HTMLElement} */ gameDiv,
-		/** @type {boolean} */ flat
+		/** @type {boolean} */ flat,
+		startImmediately = false
 	) {
 		const domGrid = new DOMGrid(this.#grid, flat, this.#startTime <= this.#params.gameLength / 2);
 		domGrid.renderTo(gameDiv);
@@ -171,7 +172,7 @@ class BoggleGame {
 		startButton.addEventListener("click", async () => {
 			const time = 1000;
 			startButton.style.visibility = "hidden";
-			if (this.#params.gameLength > 0) {
+			if (this.#params.gameLength > 0 && !startImmediately) {
 				for (let count = 3; count > 0; count--) {
 					domGrid.flashText(count.toLocaleString(), time, "200pt");
 					await sleep(time);
@@ -192,6 +193,9 @@ class BoggleGame {
 		})
 		gameDiv.appendChild(startButton);
 		gameDiv.appendChild(timerDiv);
+		if (startImmediately) {
+			startButton.click();
+		}
 	}
 
 	/** @returns {[HTMLDivElement, HTMLInputElement]} */
@@ -896,7 +900,54 @@ class GridHandler {
 	#rows
 }
 
-{
+/** @template T */
+function showPrompt(
+	/** @type {string} */ promptText,
+	/** @type {[string, T][]} */ buttons,
+	/** @type {number} */ defaultIndex = 0
+) {
+	const dialog = document.createElement("dialog");
+	const textDiv = document.createElement("div");
+	textDiv.classList.add("text");
+	textDiv.textContent = promptText;
+	dialog.ariaLabelledByElements = [textDiv];
+	const buttonDiv = document.createElement("div");
+	buttonDiv.classList.add("buttons");
+	/** @type {(result: T) => void} */
+	let resolvePromise;
+	/** @type {Promise<T>} */
+	const promise = new Promise((resolve) => {
+		resolvePromise = resolve;
+	});
+	for (const [index, [text, value]] of buttons.entries()) {
+		const button = document.createElement("button");
+		button.textContent = text;
+		button.addEventListener("click", () => {
+			dialog.parentElement.removeChild(dialog);
+			resolvePromise(value);
+		});
+		button.addEventListener("keypress", (e) => {
+			e.stopPropagation();
+		});
+		if (index === defaultIndex) {
+			button.classList.add("default");
+			dialog.addEventListener("keypress", (e) => {
+				if (e.key === "Enter") {
+					e.preventDefault();
+					button.click();
+				}
+			});
+		}
+		buttonDiv.appendChild(button);
+	}
+	dialog.appendChild(textDiv);
+	dialog.appendChild(buttonDiv);
+	document.getElementById("game").appendChild(dialog);
+	dialog.showModal();
+	return promise;
+}
+
+async function startGame() {
 	/** @returns {BoggleGameParams} */
 	function parseParams(/** @type {string} */ paramStr) {
 		return JSON.parse(paramStr);
@@ -904,18 +955,26 @@ class GridHandler {
 	const urlParams = new URLSearchParams(globalThis.location.search);
 	const currentGame = globalThis.localStorage.getItem("currentGame");
 	const currentGameTime = globalThis.localStorage.getItem("currentGameTime");
-	const params = currentGame ? parseParams(currentGame) : {
-		gameLength: Number(urlParams.get("time")) ?? (6 * 60),
+	const continueGame = !!currentGame && await showPrompt(
+		"Continue the game already in progress?",
+		[["Continue", true], ["Start a New Game", false]]
+	);
+	const params = continueGame ? parseParams(currentGame) : {
+		gameLength: Number(urlParams.get("time") ?? (6 * 60)),
 		grid: (
 			urlParams.has("letters")
 			? BoggleGrid.fromString(urlParams.get("letters").toLocaleUpperCase())
 			: BoggleGrid.fromDice(BigBoggleDice)
 		)
 	};
-	const startTime = currentGameTime ? JSON.parse(currentGameTime) : params.gameLength;
+	globalThis.localStorage.removeItem("currentGame");
+	globalThis.localStorage.removeItem("currentGameTime");
+	const startTime = continueGame ? JSON.parse(currentGameTime) : params.gameLength;
 	const game = new BoggleGame(params, startTime);
-	game.renderGame(document.getElementById("game"), urlParams.has("flat"));
+	game.renderGame(document.getElementById("game"), urlParams.has("flat"), continueGame);
 }
+
+startGame();
 
 /**
  * Sounds:
