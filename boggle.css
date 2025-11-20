@@ -84,9 +84,9 @@ input:not(:placeholder-shown) {
 	background-color: yellow;
 }
 
-.board.flat > div > div[data-letter="M"],
-.board.flat > div > div[data-letter="W"],
-.board.flat > div > div[data-letter="Z"] {
+.board.flat .cell > div[data-letter="M"],
+.board.flat .cell > div[data-letter="W"],
+.board.flat .cell > div[data-letter="Z"] {
 	text-decoration: underline;
 }
 

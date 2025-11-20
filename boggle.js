@@ -477,7 +477,9 @@ class DOMGrid {
 	showLetters() {
 		for (const row of this.#rows) {
 			for (const {letter, div} of row) {
-				div.firstChild.textContent = letter;
+				const letterDiv = div.firstElementChild;
+				letterDiv.textContent = letter;
+				letterDiv.setAttribute("data-letter", letter);
 			}
 		}
 	}
@@ -529,6 +531,7 @@ class DOMGrid {
 			const angle = Math.floor(Math.random() * 4) * 90;
 			innerDiv.style.transform = `rotate(${angle}deg)`;
 		}
+		letterDiv.classList.add("cell");
 		letterDiv.setAttribute("tabindex", "-1");
 		letterDiv.setAttribute("role", "gridcell");
 		letterDiv.appendChild(innerDiv);
