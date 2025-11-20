@@ -29,16 +29,20 @@ const BigBoggleDice = [
 const WordListURL = "https://raw.githubusercontent.com/wordnik/wordlist/refs/heads/main/wordlist-20210729.txt";
 
 /**
- * @typedef {Object} BoggleGameParams
+ * @typedef BoggleGameParams
  * @property {number} gameLength
  * @property {BoggleGrid} grid
  */
+/** @typedef {typeof BoggleGrid} BoggleGridClass */
 
 class BoggleGame {
 	constructor(/** @type {BoggleGameParams} */ params) {
 		this.#params = params;
 		this.#worker = new WorkerBox(
-			async ([BoggleGrid, WordListURL], serial) => {
+			async (
+				/** @type {[BoggleGridClass, string]} */ [BoggleGrid, WordListURL],
+				/** @type {string} */ serial
+			) => {
 				const grid = BoggleGrid.deserialize(serial);
 				const request = await fetch(WordListURL);
 				if (request.status === 200) {
@@ -58,6 +62,9 @@ class BoggleGame {
 		);
 		this.#validWords = this.#worker.promise().then(([, validWords]) => new Set(validWords)).catch((e) => {
 			alert(`Error loading word list: ${e}`);
+			/** @type {Set<string>} */
+			 const s = new Set();
+			 return s;
 		});
 		this.#allWords = this.#worker.promise().then(([allWords]) => new Set(allWords));
 		this.#validWords.then(() => console.log("Word search complete"));
@@ -69,7 +76,7 @@ class BoggleGame {
 		});
 	}
 
-	static #formatTime(time) {
+	static #formatTime(/** @type {number} */ time) {
 		return `${
 			Math.floor(time / 60).toLocaleString()
 		}:${
@@ -97,7 +104,10 @@ class BoggleGame {
 		this.#wakeLock = null;
 	}
 
-	renderGame(gameDiv, flat) {
+	renderGame(
+		/** @type {HTMLElement} */ gameDiv,
+		/** @type {boolean} */ flat
+	) {
 		const domGrid = new DOMGrid(this.#params.grid, flat);
 		domGrid.renderTo(gameDiv);
 
@@ -111,7 +121,7 @@ class BoggleGame {
 		const silence = new Audio("Resources/silence.mp3");
 		silence.loop = true;
 		const timer = new Timer(this.#params.gameLength)
-			.everySecond((time) => {
+			.everySecond((/** @type {number} */ time) => {
 				timerDiv.innerText = BoggleGame.#formatTime(time)
 			})
 			.at(Math.floor(this.#params.gameLength / 2) + 2, () => {
@@ -174,7 +184,8 @@ class BoggleGame {
 		gameDiv.appendChild(timerDiv);
 	}
 
-	#wordChecker(domGrid) {
+	/** @returns {[HTMLDivElement, HTMLInputElement]} */
+	#wordChecker(/** @type {DOMGrid} */ domGrid) {
 		const MinLength = 4;
 		const collinsThrottle = new Throttle(1000);
 		const div = document.createElement("div");
@@ -229,7 +240,7 @@ class BoggleGame {
 		return [div, textbox];
 	}
 
-	async #showAllWords(wordInput) {
+	async #showAllWords(/** @type {HTMLInputElement} */ wordInput) {
 		const words = [...await this.#validWords];
 		const button = document.createElement("button");
 		button.appendChild(document.createTextNode("\xab"));
@@ -239,11 +250,14 @@ class BoggleGame {
 			document.getElementById("container").classList.add("showReveal");
 		});
 		document.getElementById("game").appendChild(button);
-		const callback = (word) => {
+		const callback = (/** @type {string} */ word) => {
 			wordInput.value = word;
 			wordInput.dispatchEvent(new Event("input"));
 		};
-		const wordsByLength = BoggleGame.#group(words, (word) => word.length);
+		const wordsByLength = BoggleGame.#group(
+			words,
+			(/** @type {string} */ word) => word.length
+		);
 		const lists = [...wordsByLength.keys()]
 			.sort((a, b) => b - a)
 			.map((len) => BoggleGame.#wordList(
@@ -255,7 +269,11 @@ class BoggleGame {
 		}
 	}
 
-	async collinsResult(word, throttle = new Throttle(0)) {
+	/** @returns {Promise<CollinsLookupResult>} */
+	async collinsResult(
+		/** @type {string} */ word,
+		throttle = new Throttle(0)
+	) {
 		if (this.#lookupResults.has(word)) {
 			return this.#lookupResults.get(word);
 		}
@@ -265,6 +283,7 @@ class BoggleGame {
 			if (request.status !== 200) {
 				throw new Error(await request.text());
 			}
+			/** @type {CollinsLookupResult} */
 			const result = await request.json();
 			const resolvedResult = result.data?.see
 				? {
@@ -277,7 +296,12 @@ class BoggleGame {
 		});
 	}
 
-	static #group(list, groupBy) {
+	/** @template V, K */
+	static #group(
+		/** @type {V[]} */ list,
+		/** @type {(val: V) => K} */ groupBy
+	) {
+		/** @type {Map<K, Set<V>>} */
 		const map = new Map();
 		for (const item of list) {
 			const val = groupBy(item);
@@ -289,7 +313,10 @@ class BoggleGame {
 		return map;
 	}
 
-	static #wordList(words, onClick) {
+	static #wordList(
+		/** @type {string[]} */ words,
+		/** @type {(word: string) => void} */ onClick
+	) {
 		const ul = document.createElement("ul");
 		for (const word of words) {
 			const li = document.createElement("li");
@@ -303,7 +330,7 @@ class BoggleGame {
 		return ul;
 	}
 
-	static #dictionaryLink(word) {
+	static #dictionaryLink(/** @type {string} */ word) {
 		const a = document.createElement("a");
 		a.setAttribute("href", `https://www.collinsdictionary.com/dictionary/english/${encodeURIComponent(word.toLocaleLowerCase())}`);
 		a.setAttribute("target", "_blank");
@@ -312,7 +339,7 @@ class BoggleGame {
 		return a;
 	}
 
-	static #wikiLink(word) {
+	static #wikiLink(/** @type {string} */ word) {
 		const a = document.createElement("a");
 		a.setAttribute("target", "_blank");
 		a.setAttribute("rel", "noreferrer");
@@ -326,7 +353,18 @@ class BoggleGame {
 		return a;
 	}
 
-	static #definitionElement(lookupResult) {
+	/**
+	 * @typedef CollinsLookupResult
+	 * @property {CollinsLookupResult=} from
+	 * @property {true=} success
+	 * @property {{
+	 * 	   see?: string,
+	 *     definition?: string,
+	 *     posp?: string,
+	 *     complete_definition?: string
+	 * }=} data
+	 */
+	static #definitionElement(/** @type {CollinsLookupResult} */ lookupResult) {
 		const container = document.createElement("div");
 		container.classList.add("definition");
 		if (lookupResult.data?.see) {
@@ -359,15 +397,20 @@ class BoggleGame {
 	}
 
 	#params;
+	/** @type {WorkerBox<[BoggleGridClass, string], string, [string[], string[]]>} */
 	#worker;
 	#allWords;
 	#validWords;
 	#lookupResults = new Map();
+	/** @type {WakeLockSentinel | null} */
 	#wakeLock;
 }
 
 class DOMGrid {
-	constructor(grid, flat) {
+	constructor(
+		/** @type {BoggleGrid} */ grid,
+		/** @type {boolean} */ flat
+	) {
 		this.#boardDiv = document.createElement("div");
 		this.#boardDiv.setAttribute("role", "grid");
 		this.#boardDiv.classList.add("board");
@@ -400,7 +443,7 @@ class DOMGrid {
 		this.#boardContainer.appendChild(this.#boardDiv);
 	}
 
-	renderTo(target) {
+	renderTo(/** @type {HTMLElement} */ target) {
 		target.appendChild(this.#boardContainer);
 	}
 
@@ -418,7 +461,7 @@ class DOMGrid {
 	showLetters() {
 		for (const row of this.#rows) {
 			for (const {letter, div} of row) {
-				div.firstChild.innerText = letter;
+				div.firstChild.textContent = letter;
 			}
 		}
 	}
@@ -426,12 +469,12 @@ class DOMGrid {
 	hideLetters() {
 		for (const row of this.#rows) {
 			for (const {div} of row) {
-				div.firstChild.innerText = "";
+				div.firstChild.textContent = "";
 			}
 		}
 	}
 
-	selectPath(wordPath) {
+	selectPath(/** @type {[number, number][]} */ wordPath) {
 		for (const [y, row] of this.#rows.entries()) {
 			for (const [x, {div}] of row.entries()) {
 				div.classList.toggle("selected", !!wordPath && wordPath.some(
@@ -441,7 +484,11 @@ class DOMGrid {
 		}
 	}
 	
-	flashText(text, duration = 1000, fontSize = "120pt") {
+	flashText(
+		/** @type {string} */ text,
+		duration = 1000,
+		fontSize = "120pt"
+	) {
 		const div = document.createElement("div");
 		div.classList.add("flash");
 		div.style.setProperty("--duration", `${duration / 1000}s`);
@@ -459,7 +506,7 @@ class DOMGrid {
 		this.#boardDiv.classList.add("finished");
 	}
 
-	static #letterDiv(flat) {
+	static #letterDiv(/** @type {boolean} */ flat) {
 		const letterDiv = document.createElement("div");
 		const innerDiv = document.createElement("div");
 		if (flat) {
@@ -479,7 +526,7 @@ class DOMGrid {
 }
 
 class BoggleGrid {
-	constructor(letters) {
+	constructor(/** @type {string[][]} */ letters) {
 		this.letters = letters;
 	}
 
@@ -487,11 +534,11 @@ class BoggleGrid {
 		return JSON.stringify(this.letters);
 	}
 
-	static deserialize(serial) {
+	static deserialize(/** @type {string} */ serial) {
 		return new BoggleGrid(JSON.parse(serial));
 	}
 
-	static fromString(letters) {
+	static fromString(/** @type {string} */ letters) {
 		const rows = [];
 		const size = Math.floor(Math.sqrt(letters.length));
 		for (let y = 0; y < size; y++) {
@@ -505,7 +552,7 @@ class BoggleGrid {
 		return new BoggleGrid(rows);
 	}
 
-	static fromDice(diceSource) {
+	static fromDice(/** @type {string[][]} */ diceSource) {
 		const dice = [...diceSource];
 		BoggleGrid.#shuffleArray(dice);
 		const letters = dice.map((die) => die[BoggleGrid.#randomInt(0, die.length - 1)]);
@@ -517,18 +564,22 @@ class BoggleGrid {
 		return new BoggleGrid(rows);
 	}
 
-	static #shuffleArray(arr) {
+	/** @template T */
+	static #shuffleArray(/** @type {T[]} */ arr) {
 		for (let i = 0; i < arr.length; i++) {
 			const j = BoggleGrid.#randomInt(i, arr.length - 1);
 			[arr[i], arr[j]] = [arr[j], arr[i]];
 		}
 	}
 
-	static #randomInt(start, end) {
+	static #randomInt(
+		/** @type {number} */ start,
+		/** @type {number} */ end
+	) {
 		return Math.floor(Math.random() * (end - start + 1)) + start;
 	}
 
-	makeWord(word) {
+	makeWord(/** @type {string} */ word) {
 		const wordArr = [...word]
 		for (const [rowIndex, row] of this.letters.entries()) {
 			for (const [colIndex, letter] of row.entries()) {
@@ -541,7 +592,13 @@ class BoggleGrid {
 		return null;
 	}
 
-	#makeWordHelper(word, colIndex, rowIndex, seen) {
+	/** @returns {[number, number][]} */
+	#makeWordHelper(
+		/** @type {string[]} */ word,
+		/** @type {number} */ colIndex,
+		/** @type {number} */ rowIndex,
+		/** @type {[number, number][]} */ seen
+	) {
 		if (word.length === 0) {
 			return [];
 		}
@@ -574,19 +631,22 @@ class BoggleGrid {
 }
 
 class Timer {
-	constructor(seconds) {
+	constructor(/** @type {number} */ seconds) {
 		this.#time = seconds;
 		this.#everySecond = [];
 		this.#at = new Map();
 		this.#onComplete = [];
 	}
 
-	everySecond(callback) {
+	everySecond(/** @type {(second: number) => void} */ callback) {
 		this.#everySecond.push(callback);
 		return this;
 	}
 
-	at(time, callback) {
+	at(
+		/** @type {number} */ time,
+		/** @type {() => void} */ callback
+	) {
 		if (!this.#at.has(time)) {
 			this.#at.set(time, []);
 		}
@@ -594,13 +654,13 @@ class Timer {
 		return this;
 	}
 
-	onComplete(callback) {
+	onComplete(/** @type {() => void} */ callback) {
 		this.#onComplete.push(callback);
 		return this;
 	}
 
 	isRunning() {
-		return !!this.#interval;
+		return typeof this.#interval == "number";
 	}
 
 	start() {
@@ -635,18 +695,23 @@ class Timer {
 	}
 
 	#time
+	/** @type {((second: number) => void)[]} */
 	#everySecond
+	/** @type {Map<number, (() => void)[]>} */
 	#at
+	/** @type {(() => void)[]} */
 	#onComplete
+	/** @type {number | null} */
 	#interval
 }
 
 class Throttle {
-	constructor(milliseconds) {
+	constructor(/** @type {number} */ milliseconds) {
 		this.#milliseconds = milliseconds;
 	}
 
-	maybeDoTask(task) {
+	/** @template T */
+	maybeDoTask(/** @type {() => Promise<T>} */ task) {
 		const now = performance.now();
 		if (this.#currentTimeout !== null) {
 			clearTimeout(this.#currentTimeout);
@@ -655,7 +720,9 @@ class Throttle {
 		const waitTime = this.#lastEventTime === null
 			? 0
 			: Math.max(this.#milliseconds - (now - this.#lastEventTime), 0);
+		/** @type {(value: T) => void} */
 		let resolve;
+		/** @type {Promise<T>} */
 		const promise = new Promise((r) => {
 			resolve = r;
 		});
@@ -674,13 +741,24 @@ class Throttle {
 	}
 
 	#milliseconds;
+	/** @type {number | null} */
 	#currentTimeout = null;
+	/** @type {number | null} */
 	#lastEventTime = null;
 }
 
+/** @template DependencyType, DataType, ReturnType */
 class WorkerBox {
-	constructor(f, deps, data) {
-		const caller = (f, deps) => {
+	/** @typedef {(deps: DependencyType[], data: DataType) => void} WorkerCallback */
+	constructor(
+		/** @type {WorkerCallback} */ f,
+		/** @type {DependencyType[]} */ deps,
+		/** @type {DataType} */ data
+	) {
+		const caller = (
+			/** @type {WorkerCallback} */ f,
+			/** @type {DependencyType[]} */ deps
+		) => {
 			addEventListener("message", async ({data}) => {
 				try {
 					postMessage({"success": await f(deps, data)});
@@ -691,14 +769,22 @@ class WorkerBox {
 		};
 		const script = `(${caller.toString()})(${f.toString()}, [${deps.map((v) => WorkerBox.#stringify(v)).join(",")}]);`;
 		this.#worker = new Worker(`data:application/javascript,${encodeURIComponent(script)}`);
+		/**
+		 * @typedef Message
+		 * @property {{success?: ReturnType, error: any}} data
+		 */
 		this.#promise = new Promise((resolve, reject) => {
-			this.#worker.addEventListener("message", ({data}) => {
-				if (data.success) {
-					resolve(data.success);
-				} else {
-					reject(data.error);
+			/** @type {EventListenerObject} */
+			this.#worker.addEventListener(
+				"message",
+				(/** @type {Message} */ {data}) => {
+					if (data.success) {
+						resolve(data.success);
+					} else {
+						reject(data.error);
+					}
 				}
-			});
+			);
 			this.#worker.postMessage(data);
 		});
 	}
@@ -707,7 +793,7 @@ class WorkerBox {
 		return this.#promise;
 	}
 
-	static #stringify(object) {
+	static #stringify(/** @type {unknown} */ object) {
 		return (
 			object instanceof Function
 				? object.toString()
@@ -716,19 +802,29 @@ class WorkerBox {
 	}
 
 	#worker;
-	#promise;
+	/** @type {Promise<ReturnType>} */ #promise;
 }
 
-function sleep(time) {
+function sleep(/** @type {number} */ time) {
 	return new Promise((resolve) => setTimeout(() => resolve(), time));
 }
 
+/**
+ * @typedef DOMGridElement
+ * @property {HTMLDivElement} div
+ * @property {string} letter
+ */
 class GridHandler {
-	constructor(rows) {
+	constructor(/** @type {DOMGridElement[][]} */ rows) {
 		this.#rows = rows;
 	}
 
-	handleKeyDown(event, x, y, rotated) {
+	handleKeyDown(
+		/** @type {KeyboardEvent} */ event,
+		/** @type {number} */ x,
+		/** @type {number} */ y,
+		/** @type {boolean} */ rotated
+	) {
 		if (event.altKey || event.shiftKey || event.metaKey) {
 			return;
 		}
@@ -746,7 +842,7 @@ class GridHandler {
 		}
 	}
 
-	static #reverseKey(key) {
+	static #reverseKey(/** @type {string} */ key) {
 		switch (key) {
 			case "ArrowLeft": return "ArrowRight";
 			case "ArrowRight": return "ArrowLeft";
@@ -758,7 +854,14 @@ class GridHandler {
 		}
 	}
 
-	static #nextCell(key, ctrl, x, y, numRows, numCols) {
+	static #nextCell(
+		/** @type {string} */ key,
+		/** @type {boolean} */ ctrl,
+		/** @type {number} */ x,
+		/** @type {number} */ y,
+		/** @type {number} */ numRows,
+		/** @type {number} */ numCols
+	) {
 		switch (key) {
 			case "ArrowLeft": return [Math.max(x - 1, 0), y];
 			case "ArrowRight": return [Math.min(x + 1, numCols - 1), y];
@@ -776,7 +879,7 @@ class GridHandler {
 {
 	const urlParams = new URLSearchParams(globalThis.location.search);
 	new BoggleGame({
-		gameLength: urlParams.get("time") ?? (6 * 60),
+		gameLength: Number(urlParams.get("time")) ?? (6 * 60),
 		grid: (
 			urlParams.has("letters")
 			? BoggleGrid.fromString(urlParams.get("letters").toLocaleUpperCase())
