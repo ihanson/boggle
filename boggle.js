@@ -1,4 +1,4 @@
-const Dice = [
+const BigBoggleDice = [
 	["A", "A", "A", "F", "R", "S"],
 	["A", "A", "E", "E", "E", "E"],
 	["A", "A", "F", "I", "R", "S"],
@@ -28,18 +28,15 @@ const Dice = [
 
 const WordListURL = "https://raw.githubusercontent.com/wordnik/wordlist/refs/heads/main/wordlist-20210729.txt";
 
+/**
+ * @typedef {Object} BoggleGameParams
+ * @property {number} gameLength
+ * @property {BoggleGrid} grid
+ */
+
 class BoggleGame {
-	constructor() {
-		const urlParams = new URLSearchParams(globalThis.location.search);
-		this.#params = {
-			flat: urlParams.has("flat"),
-			gameLength: urlParams.get("time") ?? (6 * 60)
-		};
-		this.#grid = (
-			urlParams.has("letters") && urlParams.get("letters").length === Dice.length
-			? new BoggleGrid(BoggleGame.#letterArray(urlParams.get("letters").toLocaleUpperCase()))
-			: new BoggleGrid()
-		);
+	constructor(/** @type {BoggleGameParams} */ params) {
+		this.#params = params;
 		this.#worker = new WorkerBox(
 			async ([BoggleGrid, WordListURL], serial) => {
 				const grid = BoggleGrid.deserialize(serial);
@@ -57,7 +54,7 @@ class BoggleGame {
 				} else {
 					throw new Error(await request.text());
 				}
-			}, [BoggleGrid, WordListURL], this.#grid.serialize()
+			}, [BoggleGrid, WordListURL], this.#params.grid.serialize()
 		);
 		this.#validWords = this.#worker.promise().then(([, validWords]) => new Set(validWords)).catch((e) => {
 			alert(`Error loading word list: ${e}`);
@@ -70,20 +67,6 @@ class BoggleGame {
 				this.#createWakeLock();
 			}
 		});
-	}
-
-	static #letterArray(letters) {
-		const rows = [];
-		const size = Math.sqrt(letters.length);
-		for (let y = 0; y < size; y++) {
-			const row = []
-			for (let x = 0; x < size; x++) {
-				const letter = letters[y * size + x];
-				row.push(letter === "Q" ? "Qu" : letter);
-			}
-			rows.push(row);
-		}
-		return rows;
 	}
 
 	static #formatTime(time) {
@@ -114,8 +97,8 @@ class BoggleGame {
 		this.#wakeLock = null;
 	}
 
-	renderGame(gameDiv) {
-		const domGrid = new DOMGrid(this.#grid, this.#params.flat);
+	renderGame(gameDiv, flat) {
+		const domGrid = new DOMGrid(this.#params.grid, flat);
 		domGrid.renderTo(gameDiv);
 
 		const startButton = document.createElement("button");
@@ -201,7 +184,7 @@ class BoggleGame {
 		textbox.setAttribute("placeholder", "Check a word");
 		textbox.addEventListener("input", async () => {
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
-			const wordPath = this.#grid.makeWord(word);
+			const wordPath = this.#params.grid.makeWord(word);
 			domGrid.selectPath(wordPath);
 			result.innerText = "";
 			if (word.length < MinLength) {
@@ -376,7 +359,6 @@ class BoggleGame {
 	}
 
 	#params;
-	#grid;
 	#worker;
 	#allWords;
 	#validWords;
@@ -398,7 +380,7 @@ class DOMGrid {
 				letter
 			}))
 		);
-		this.#rows[0][0].div.setAttribute("tabindex", "0");
+		this.#rows[0]?.[0].div.setAttribute("tabindex", "0");
 		const gridHandler = new GridHandler(this.#rows);
 		for (const [y, row] of this.#rows.entries()) {
 			const rowDiv = document.createElement("div");
@@ -424,11 +406,13 @@ class DOMGrid {
 
 	setRotated() {
 		this.#boardDiv.classList.add("rotated");
-		this.#rows[0][0].div.setAttribute("tabindex", "-1");
-		const lastRow = this.#rows.length - 1;
-		const lastCol = this.#rows[lastRow].length -1;
-		this.#rows[lastRow][lastCol].div.setAttribute("tabindex", "0");
-		this.#rotated = true;
+		if (this.#rows.length > 0) {
+			this.#rows[0][0].div.setAttribute("tabindex", "-1");
+			const lastRow = this.#rows.length - 1;
+			const lastCol = this.#rows[lastRow].length -1;
+			this.#rows[lastRow][lastCol].div.setAttribute("tabindex", "0");
+			this.#rotated = true;
+		}
 	}
 
 	showLetters() {
@@ -496,7 +480,7 @@ class DOMGrid {
 
 class BoggleGrid {
 	constructor(letters) {
-		this.letters = letters ?? BoggleGrid.#randomLetters();
+		this.letters = letters;
 	}
 
 	serialize() {
@@ -507,8 +491,22 @@ class BoggleGrid {
 		return new BoggleGrid(JSON.parse(serial));
 	}
 
-	static #randomLetters() {
-		const dice = [...Dice];
+	static fromString(letters) {
+		const rows = [];
+		const size = Math.floor(Math.sqrt(letters.length));
+		for (let y = 0; y < size; y++) {
+			const row = []
+			for (let x = 0; x < size; x++) {
+				const letter = letters[y * size + x];
+				row.push(letter === "Q" ? "Qu" : letter);
+			}
+			rows.push(row);
+		}
+		return new BoggleGrid(rows);
+	}
+
+	static fromDice(diceSource) {
+		const dice = [...diceSource];
 		BoggleGrid.#shuffleArray(dice);
 		const letters = dice.map((die) => die[BoggleGrid.#randomInt(0, die.length - 1)]);
 		const rows = [];
@@ -516,7 +514,7 @@ class BoggleGrid {
 		for (let row = 0; row < size; row++) {
 			rows.push(letters.slice(row * size, (row + 1) * size));
 		}
-		return rows;
+		return new BoggleGrid(rows);
 	}
 
 	static #shuffleArray(arr) {
@@ -775,7 +773,17 @@ class GridHandler {
 	#rows
 }
 
-new BoggleGame().renderGame(document.getElementById("game"));
+{
+	const urlParams = new URLSearchParams(globalThis.location.search);
+	new BoggleGame({
+		gameLength: urlParams.get("time") ?? (6 * 60),
+		grid: (
+			urlParams.has("letters")
+			? BoggleGrid.fromString(urlParams.get("letters").toLocaleUpperCase())
+			: BoggleGrid.fromDice(BigBoggleDice)
+		)
+	}).renderGame(document.getElementById("game"), urlParams.has("flat"));
+}
 
 /**
  * Sounds:
