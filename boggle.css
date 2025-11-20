@@ -58,7 +58,7 @@ input:not(:placeholder-shown) {
 	display: inline-block;
 }
 
-.board > div > div {
+.board .cell {
 	display: inline-flex;
 	flex-direction: column;
 	justify-content: center;
@@ -84,14 +84,18 @@ input:not(:placeholder-shown) {
 	background-color: yellow;
 }
 
+.board.flat.rotated .cell {
+	box-shadow: -4px -4px 4px gray;
+}
+
 .board.flat .cell > div[data-letter="M"],
 .board.flat .cell > div[data-letter="W"],
 .board.flat .cell > div[data-letter="Z"] {
 	text-decoration: underline;
 }
 
-.board, .board > div > div {
-	transition: transform 1s ease;
+.board, .board .cell {
+	transition: transform 1s ease, box-shadow 1s ease;
 }
 
 .board.rotated {
