@@ -122,6 +122,7 @@ class BoggleGame {
 		startButton.appendChild(document.createTextNode("Start"));
 		const timerButton = document.createElement("button");
 		timerButton.classList.add("timerButton");
+		timerButton.innerText = "Pause";
 		const timerDiv = document.createElement("div");
 		timerDiv.classList.add("timer");
 		const silence = new Audio("Resources/silence.mp3");
@@ -137,15 +138,17 @@ class BoggleGame {
 			.at(Math.floor(this.#params.gameLength / 2), () => {
 				domGrid.setRotated();
 			})
-			.onComplete(() => {
-				new Audio("Resources/complete.mp3").play();
+			.onComplete((isEarly) => {
+				if (!isEarly) {
+					new Audio("Resources/complete.mp3").play();
+					domGrid.setFinished();
+					domGrid.flashText("Time!");
+				}
 				silence.pause();
 				timerButton.parentElement.removeChild(timerButton);
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(domGrid);
 				gameDiv.appendChild(wordChecker);
-				domGrid.flashText("Time!");
-				domGrid.setFinished();
 				globalThis.localStorage.removeItem("currentGame");
 				globalThis.localStorage.removeItem("currentGameTime");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
@@ -159,15 +162,25 @@ class BoggleGame {
 			timer.start();
 			silence.play();
 			this.#createWakeLock();
-			timerButton.innerText = "Pause";
+			timerButton.style.removeProperty("visibility");
 			domGrid.showLetters();
 		};
-		const pauseTimer = () => {
+		const pauseTimer = async () => {
 			timer.stop();
 			silence.pause();
 			this.#releaseWaitLock();
-			timerButton.innerText = "Resume";
+			timerButton.style.visibility = "hidden";
 			domGrid.hideLetters();
+			const result = await showPrompt(
+				null,
+				[["Resume Game", "resume"], ["End Game", "end"]]
+			);
+			domGrid.showLetters();
+			if (result === "resume") {
+				startTimer();
+			} else {
+				timer.endEarly();
+			}
 		};
 		startButton.addEventListener("click", async () => {
 			const time = 1000;
@@ -678,7 +691,7 @@ class Timer {
 		return this;
 	}
 
-	onComplete(/** @type {() => void} */ callback) {
+	onComplete(/** @type {(isEarly: boolean) => void} */ callback) {
 		this.#onComplete.push(callback);
 		return this;
 	}
@@ -703,6 +716,13 @@ class Timer {
 		}
 	}
 
+	endEarly() {
+		if (this.#time >= 0) {
+			this.#handleEnd(true);
+			this.#time = 0;
+		}
+	}
+
 	#handleSecond() {
 		for (const callback of this.#everySecond) {
 			callback.call(null, this.#time);
@@ -711,11 +731,15 @@ class Timer {
 			callback.call(null);
 		}
 		if (this.#time <= 0) {
-			for (const callback of this.#onComplete) {
-				callback.call(null);
-			}
-			this.stop();
+			this.#handleEnd(false);
 		}
+	}
+
+	#handleEnd(/** @type {boolean} */ isEarly) {
+		for (const callback of this.#onComplete) {
+			callback.call(null, isEarly);
+		}
+		this.stop();
 	}
 
 	#time
@@ -723,7 +747,7 @@ class Timer {
 	#everySecond
 	/** @type {Map<number, (() => void)[]>} */
 	#at
-	/** @type {(() => void)[]} */
+	/** @type {((isEarly: boolean) => void)[]} */
 	#onComplete
 	/** @type {number | null} */
 	#interval
@@ -902,15 +926,18 @@ class GridHandler {
 
 /** @template T */
 function showPrompt(
-	/** @type {string} */ promptText,
+	/** @type {string | null} */ promptText,
 	/** @type {[string, T][]} */ buttons,
 	/** @type {number} */ defaultIndex = 0
 ) {
 	const dialog = document.createElement("dialog");
-	const textDiv = document.createElement("div");
-	textDiv.classList.add("text");
-	textDiv.textContent = promptText;
-	dialog.ariaLabelledByElements = [textDiv];
+	if (promptText) {
+		const textDiv = document.createElement("div");
+		textDiv.classList.add("text");
+		textDiv.textContent = promptText;
+		dialog.ariaLabelledByElements = [textDiv];
+		dialog.appendChild(textDiv);
+	}
 	const buttonDiv = document.createElement("div");
 	buttonDiv.classList.add("buttons");
 	/** @type {(result: T) => void} */
@@ -940,7 +967,6 @@ function showPrompt(
 		}
 		buttonDiv.appendChild(button);
 	}
-	dialog.appendChild(textDiv);
 	dialog.appendChild(buttonDiv);
 	document.getElementById("game").appendChild(dialog);
 	dialog.showModal();
