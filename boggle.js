@@ -404,22 +404,24 @@ class BoggleGame {
 			defSpan.appendChild(document.createTextNode(lookupResult.data.definition));
 			container.appendChild(defSpan);
 		} else if (lookupResult.success) {
+			const dl = document.createElement("dl");
 			const partsOfSpeech = lookupResult.data.posp.split("###");
 			const definitions = lookupResult.data.complete_definition.split("###");
 			for (let i = 0; i < definitions.length; i++) {
 				const partOfSpeech = partsOfSpeech[i];
 				const definition = definitions[i];
 				if (partOfSpeech) {
-					const header = document.createElement("h1");
-					header.appendChild(document.createTextNode(partOfSpeech));
-					container.appendChild(header);
+					const dt = document.createElement("dt");
+					dt.textContent = partOfSpeech;
+					dl.appendChild(dt);
 				}
 				if (definition) {
-					const defDiv = document.createElement("div");
-					defDiv.appendChild(document.createTextNode(definition));
-					container.appendChild(defDiv);
+					const dd = document.createElement("dd");
+					dd.textContent = definition;
+					dl.appendChild(dd);
 				}
 			}
+			container.appendChild(dl);
 		}
 		return container;
 	}
@@ -495,9 +497,9 @@ class DOMGrid {
 	showLetters() {
 		for (const row of this.#rows) {
 			for (const {letter, div} of row) {
+				div.setAttribute("data-letter", letter);
 				const letterDiv = div.firstElementChild;
 				letterDiv.textContent = letter;
-				letterDiv.setAttribute("data-letter", letter);
 			}
 		}
 	}

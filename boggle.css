@@ -11,14 +11,17 @@ a, a:visited {
 #container {
 	display: flex;
 	height: 100%;
-}
-
-#game {
-	overflow-y: auto;
-	text-align: center;
-	flex: 4;
-	position: relative;
-	padding-bottom: 2em;
+	#game {
+		overflow-y: auto;
+		text-align: center;
+		flex: 4;
+		position: relative;
+		padding-bottom: 2em;
+	}
+	#reveal {
+		flex: 1;
+		overflow-y: scroll;
+	}
 }
 
 button.expand {
@@ -33,11 +36,6 @@ button.expand {
 	border-radius: 0;
 	margin: 0;
 	padding: 0.5em 0 0.5em 0;
-}
-
-#reveal {
-	flex: 1;
-	overflow-y: scroll;
 }
 
 #container:not(.showReveal) #reveal {
@@ -80,57 +78,51 @@ input:not(:placeholder-shown) {
 .board {
 	margin: 15px;
 	display: inline-block;
+	.cell {
+		display: inline-flex;
+		flex-direction: column;
+		justify-content: center;
+		font-family: "Work Sans", sans-serif;
+		font-size: 48pt;
+		height: 1.5em;
+		width: 1.5em;
+		border: 1px solid brown;
+		background-color: beige;
+		color: black;
+		margin: 2px;
+		border-radius: 4px;
+		box-shadow: 4px 4px 4px gray;
+		user-select: none;
+		-webkit-user-select: none;
+		&.selected {
+			background-color: yellow;
+		}
+		&:focus {
+			outline: 3px solid blue;
+		}
+	}
+	&, & .cell {
+		transition: transform 1s ease, box-shadow 1s ease;
+	}
+	&.rotated {
+		transform: rotate(180deg);
+		&:not(.flat) .cell {
+			transform: rotate(-180deg);
+		}
+	}
+	&.flat {
+		& .cell[data-letter="M"],
+		& .cell[data-letter="W"],
+		& .cell[data-letter="Z"] {
+			text-decoration: underline;
+		}
+		&.rotated .cell {
+			box-shadow: -4px -4px 4px gray;
+		}
+	}
 }
 
-.board .cell {
-	display: inline-flex;
-	flex-direction: column;
-	justify-content: center;
-	font-family: "Work Sans", sans-serif;
-	font-size: 48pt;
-	height: 1.5em;
-	width: 1.5em;
-	border: 1px solid brown;
-	background-color: beige;
-	color: black;
-	margin: 2px;
-	border-radius: 4px;
-	box-shadow: 4px 4px 4px gray;
-	user-select: none;
-	-webkit-user-select: none;
-}
-
-.board > div > div:focus {
-	outline: 3px solid blue;
-}
-
-.board > div > div.selected {
-	background-color: yellow;
-}
-
-.board.flat.rotated .cell {
-	box-shadow: -4px -4px 4px gray;
-}
-
-.board.flat .cell > div[data-letter="M"],
-.board.flat .cell > div[data-letter="W"],
-.board.flat .cell > div[data-letter="Z"] {
-	text-decoration: underline;
-}
-
-.board, .board .cell {
-	transition: transform 1s ease, box-shadow 1s ease;
-}
-
-.board.rotated {
-	transform: rotate(180deg);
-}
-
-.board.rotated:not(.flat) > div > div {
-	transform: rotate(-180deg);
-}
-
-.board.finished > div > div {
+.finished .cell {
 	animation-name: flash;
 	animation-duration: 4s;
 }
@@ -145,60 +137,53 @@ input:not(:placeholder-shown) {
 	color: lightblue;
 }
 
-.result {
+.result:not(:empty) {
 	margin-top: 0.5em;
+	::before {
+		padding-right: 0.5ex;
+	}
+	&.valid::before {
+		content: "\2714\fe0f";
+	}
+	&:not(.valid)::before {
+		content: "\274c";
+	}
+	> a.wiki {
+		margin-left: 1ex;
+		> img {
+			--scale-factor: 1.5;
+			height: calc(var(--scale-factor) * 1cap);
+			vertical-align: calc((var(--scale-factor) - 1) / 2 * -1cap);
+		}
+	}
 }
 
-.result:not(:empty).valid::before {
-	content: "\2714\fe0f";
-	padding-right: 0.5ex;
-}
-
-.result:not(:empty):not(.valid)::before {
-	content: "\274c";
-	padding-right: 0.5ex;
-}
-
-.result > a.wiki {
-	margin-left: 1ex;
-}
-
-.result > a.wiki > img {
-	--scale-factor: 1.5;
-	height: calc(var(--scale-factor) * 1cap);
-	vertical-align: calc((var(--scale-factor) - 1) / 2 * -1cap);
-}
-
-.definition {
+.definition:not(:empty) {
 	width: 60%;
 	margin-top: 0.5em;
 	margin-left: 20%;
 	text-align: left;
-	background-color: azure;
-}
-
-.definition:not(:empty) {
 	border: 1px solid gray;
-}
-
-.definition h1 {
-	font-size: 0.8em;
-	line-height: 100%;
-	margin: 0;
-	font-weight: normal;
-	font-style: italic;
-}
-
-.definition .see {
-	font-style: italic;
-}
-
-.definition h1:not(:first-child) {
-	margin-top: 0.5em;
-}
-
-.definition div {
-	margin-left: 1em;
+	background-color: azure;
+	.see {
+		font-style: italic;
+	}
+	dl {
+		margin: 0;
+		dt {
+			font-size: 0.8em;
+			line-height: 100%;
+			margin: 0;
+			font-weight: normal;
+			font-style: italic;
+			&:not(:first-child) {
+				margin-top: 0.5em;
+			}
+		}
+		dd {
+			margin-left: 1em;
+		}
+	}
 }
 
 button.word {
@@ -229,24 +214,9 @@ dialog {
 	}
 	> .buttons {
 		text-align: right;
-
 		> button:not(:first-child) {
 			margin-left: 0.5em;
 		}
-	}
-}
-
-@keyframes flash {
-	from {
-		color: black;
-	}
-
-	10% {
-		color: rgba(0, 0, 0, 10%);
-	}
-
-	to {
-		color: black;
 	}
 }
 
@@ -269,6 +239,20 @@ dialog {
 	animation-name: flash-text;
 	animation-duration: calc(var(--duration) * 1.2);
 	animation-timing-function: ease-in;
+}
+
+@keyframes flash {
+	from {
+		color: black;
+	}
+
+	10% {
+		color: rgba(0, 0, 0, 10%);
+	}
+
+	to {
+		color: black;
+	}
 }
 
 @keyframes flash-text {
