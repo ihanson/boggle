@@ -42,6 +42,16 @@ class BoggleGame {
 	) {
 		this.#params = params;
 		this.#grid = new BoggleGrid(params.grid);
+		this.#controls = document.createElement("div");
+		this.#controls.classList.add("controls");
+		this.#main = document.createElement("div");
+		this.#main.classList.add("main");
+		this.#reveal = document.createElement("result");
+		this.#reveal.classList.add("reveal");
+		this.#container = document.createElement("div");
+		this.#container.classList.add("boggle");
+		this.#container.appendChild(this.#main);
+		this.#container.appendChild(this.#reveal);
 		this.#startTime = startTime;
 		this.#worker = new WorkerBox(
 			async (
@@ -110,13 +120,15 @@ class BoggleGame {
 	}
 
 	renderGame(
-		/** @type {HTMLElement} */ gameDiv,
+		/** @type {HTMLElement} */ target,
 		/** @type {boolean} */ flat,
 		startImmediately = false
 	) {
 		const domGrid = new DOMGrid(this.#grid, flat, this.#startTime <= this.#params.gameLength / 2);
-		domGrid.renderTo(gameDiv);
-
+		domGrid.renderTo(this.#main);
+		this.#main.appendChild(this.#controls);
+		target.textContent = "";
+		target.appendChild(this.#container);
 		const startButton = document.createElement("button");
 		startButton.classList.add("timerButton");
 		startButton.appendChild(document.createTextNode("Start"));
@@ -148,7 +160,7 @@ class BoggleGame {
 				timerButton.parentElement.removeChild(timerButton);
 				timerDiv.parentElement.removeChild(timerDiv);
 				const [wordChecker, wordInput] = this.#wordChecker(domGrid);
-				gameDiv.appendChild(wordChecker);
+				this.#controls.appendChild(wordChecker);
 				globalThis.localStorage.removeItem("currentGame");
 				globalThis.localStorage.removeItem("currentGameTime");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
@@ -172,6 +184,7 @@ class BoggleGame {
 			timerButton.style.visibility = "hidden";
 			domGrid.hideLetters();
 			const result = await showPrompt(
+				this.#main,
 				null,
 				[["Resume Game", "resume"], ["End Game", "end"]]
 			);
@@ -204,8 +217,8 @@ class BoggleGame {
 				startTimer();
 			}
 		})
-		gameDiv.appendChild(startButton);
-		gameDiv.appendChild(timerDiv);
+		this.#controls.appendChild(startButton);
+		this.#controls.appendChild(timerDiv);
 		if (startImmediately) {
 			startButton.click();
 		}
@@ -274,10 +287,10 @@ class BoggleGame {
 		button.classList.add("expand");
 		button.addEventListener("click", () => {
 			button.parentElement.removeChild(button);
-			document.getElementById("container").classList.add("showReveal");
-			document.getElementById("reveal").scroll({behavior: "instant", top: 0, left: 0});
+			this.#container.classList.add("showReveal");
+			this.#reveal.scroll({behavior: "instant", top: 0, left: 0});
 		});
-		document.getElementById("container").appendChild(button);
+		this.#container.appendChild(button);
 		const callback = (/** @type {string} */ word) => {
 			wordInput.value = word;
 			wordInput.dispatchEvent(new Event("input"));
@@ -293,7 +306,7 @@ class BoggleGame {
 				callback
 			));
 		for (const list of lists) {
-			document.getElementById("reveal").appendChild(list);
+			this.#reveal.appendChild(list);
 		}
 	}
 
@@ -427,6 +440,10 @@ class BoggleGame {
 	}
 
 	#params;
+	#container;
+	#main;
+	#controls;
+	#reveal;
 	#grid;
 	#startTime;
 	/** @type {WorkerBox<[BoggleGridClass, string], string, [string[], string[]]>} */
@@ -447,6 +464,7 @@ class DOMGrid {
 		this.#boardDiv = document.createElement("div");
 		this.#boardDiv.setAttribute("role", "grid");
 		this.#boardDiv.classList.add("board");
+		this.#boardDiv.style.setProperty("--board-size", grid.letters.length.toString());
 		if (flat) {
 			this.#boardDiv.classList.add("flat");
 		}
@@ -530,11 +548,16 @@ class DOMGrid {
 		const div = document.createElement("div");
 		div.classList.add("flash");
 		div.style.setProperty("--duration", `${duration / 1000}s`);
-		const textDiv = document.createElement("div");
-		textDiv.appendChild(document.createTextNode(text));
-		textDiv.style.fontSize = fontSize;
-		div.appendChild(textDiv);
-		this.#boardContainer.appendChild(div);
+		div.style.fontSize = fontSize;
+		div.textContent = text;
+		div.style.visibility = "none";
+		document.firstElementChild.appendChild(div);
+		const textRect = div.getBoundingClientRect();
+		const targetRect = this.#boardDiv.getBoundingClientRect();
+		div.style.left = `${targetRect.left + (targetRect.width / 2) - (textRect.width / 2)}px`;
+		div.style.top = `${targetRect.top + (targetRect.height / 2) - (textRect.height / 2)}px`;
+		div.classList.add("animating");
+		div.style.removeProperty("visibility");
 		div.addEventListener("animationend", () => {
 			div.parentNode.removeChild(div);
 		});
@@ -928,6 +951,7 @@ class GridHandler {
 
 /** @template T */
 function showPrompt(
+	/** @type {HTMLElement} */ element,
 	/** @type {string | null} */ promptText,
 	/** @type {[string, T][]} */ buttons,
 	/** @type {number} */ defaultIndex = 0
@@ -970,7 +994,7 @@ function showPrompt(
 		buttonDiv.appendChild(button);
 	}
 	dialog.appendChild(buttonDiv);
-	document.getElementById("game").appendChild(dialog);
+	element.appendChild(dialog);
 	dialog.showModal();
 	return promise;
 }
@@ -984,6 +1008,7 @@ async function startGame() {
 	const currentGame = globalThis.localStorage.getItem("currentGame");
 	const currentGameTime = globalThis.localStorage.getItem("currentGameTime");
 	const continueGame = !!currentGame && await showPrompt(
+		document.body,
 		"Continue the game already in progress?",
 		[["Continue", true], ["Start a New Game", false]]
 	);
@@ -999,7 +1024,7 @@ async function startGame() {
 	globalThis.localStorage.removeItem("currentGameTime");
 	const startTime = continueGame ? JSON.parse(currentGameTime) : params.gameLength;
 	const game = new BoggleGame(params, startTime);
-	game.renderGame(document.getElementById("game"), urlParams.has("flat"), continueGame);
+	game.renderGame(document.body, urlParams.has("flat"), continueGame);
 }
 
 startGame();

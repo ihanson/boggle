@@ -1,3 +1,23 @@
+@media (pointer: coarse) {
+	button {
+		padding: 1em;
+	}
+
+	button.expand {
+		padding: 0 2em 0 2em;
+	}
+}
+
+@media (pointer: fine) {
+	button {
+		padding: 4px 16px 4px 16px;
+	}
+	
+	button.expand {	
+		padding: 0.5em 0 0.5em 0;
+	}
+}
+
 html, body {
 	height: 100%;
 	margin: 0;
@@ -8,19 +28,31 @@ a, a:visited {
 	text-decoration: underline 0.075em;
 }
 
-#container {
+.boggle {
 	display: flex;
 	height: 100%;
-	#game {
-		overflow-y: auto;
+	overflow: hidden;
+	.main {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
 		text-align: center;
-		flex: 4;
 		position: relative;
 		padding-bottom: 2em;
+		> .boardContainer {
+			flex: 1;
+		}
+		> .controls {
+			min-height: 10em;
+			padding-top: 2em;
+		}
 	}
-	#reveal {
-		flex: 1;
+	.reveal {
+		width: 16em;
 		overflow-y: scroll;
+	}
+	&:not(.showReveal) .reveal {
+		display: none;
 	}
 }
 
@@ -35,14 +67,9 @@ button.expand {
 	box-shadow: none;
 	border-radius: 0;
 	margin: 0;
-	padding: 0.5em 0 0.5em 0;
 }
 
-#container:not(.showReveal) #reveal {
-	display: none;
-}
-
-#game, button, input {
+:root, button, input {
 	font-family: "Open Sans", sans-serif;
 	font-size: 16pt;
 }
@@ -53,7 +80,6 @@ button {
 	border: none;
 	box-shadow: 0px 0px 3px gray;
 	border-radius: 8px;
-	padding: 4px 16px 4px 16px;
 	&:hover {
 		background-color: #ddd;
 	}
@@ -73,25 +99,36 @@ input:not(:placeholder-shown) {
 
 .boardContainer {
 	position: relative;
+	white-space: nowrap;
+	container-type: size;
+	padding: 15px;
+	text-align: center;
 }
 
 .board {
-	margin: 15px;
+	--size: min(100cqh, 100cqw);
 	display: inline-block;
+	height: var(--size);
+	width: var(--size);
+	font-size: 0;
 	.cell {
+		--cell-margin: calc(var(--size) * 0.005);
+		--row-size: calc(var(--size) / var(--board-size));
+		--cell-size: calc(var(--row-size) - (var(--cell-margin) * 2));
 		display: inline-flex;
+		box-sizing: border-box;
 		flex-direction: column;
 		justify-content: center;
 		font-family: "Work Sans", sans-serif;
-		font-size: 48pt;
-		height: 1.5em;
-		width: 1.5em;
-		border: 1px solid brown;
+		height: var(--cell-size);
+		width: var(--cell-size);
+		font-size: calc(var(--cell-size) * 0.65);
+		border: calc(min(1px, var(--cell-margin) / 2)) solid brown;
 		background-color: beige;
 		color: black;
-		margin: 2px;
-		border-radius: 4px;
-		box-shadow: 4px 4px 4px gray;
+		margin: var(--cell-margin);
+		border-radius: 5%;
+		box-shadow: var(--cell-margin) var(--cell-margin) var(--cell-margin) gray;
 		user-select: none;
 		-webkit-user-select: none;
 		&.selected {
@@ -101,10 +138,8 @@ input:not(:placeholder-shown) {
 			outline: 3px solid blue;
 		}
 	}
-	&, & .cell {
-		transition: transform 1s ease, box-shadow 1s ease;
-	}
 	&.rotated {
+		transition: transform 1s ease, box-shadow 1s ease;
 		transform: rotate(180deg);
 		&:not(.flat) .cell {
 			transform: rotate(-180deg);
@@ -128,7 +163,6 @@ input:not(:placeholder-shown) {
 }
 
 .timerButton {
-	margin-top: 2em;
 	font-size: 24pt;
 }
 
@@ -222,23 +256,17 @@ dialog {
 
 .flash {
 	position: absolute;
-	top: 0;
-	height: 100%;
-	width: 100%;
-	text-align: center;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	font-family: "Open Sans", sans-serif;
 	font-weight: 800;
 	color: white;
 	-webkit-text-stroke: 5px black;
 	user-select: none;
 	-webkit-user-select: none;
 	pointer-events: none;
-	animation-name: flash-text;
-	animation-duration: calc(var(--duration) * 1.2);
-	animation-timing-function: ease-in;
+	&.animating {
+		animation-name: flash-text;
+		animation-duration: calc(var(--duration) * 1.2);
+		animation-timing-function: ease-in;
+	}
 }
 
 @keyframes flash {
