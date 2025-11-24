@@ -18,17 +18,55 @@
 	}
 }
 
+@media (prefers-color-scheme: light) {
+	:root {
+		--button-background-color: lightgray;
+		--button-text-color: black;
+		--default-button-background-color: dodgerblue;
+		--default-button-text-color: white;
+		--button-hover-brightness: 85%;
+		--button-active-brightness: 70%;
+		--link-color: royalblue;
+		--block-color: beige;
+		--block-border-color: brown;
+		--highlight-color: Mark;
+		--timer-color: lightblue;
+		--definition-background: azure;
+	}
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--button-background-color: darkslategray;
+		--button-text-color: white;
+		--default-button-background-color: deepskyblue;
+		--default-button-text-color: black;
+		--button-hover-brightness: 115%;
+		--button-active-brightness: 130%;
+		--link-color: LinkText;
+		--block-color: maroon;
+		--block-border-color: brown;
+		--highlight-color: olive;
+		--timer-color: mediumblue;
+		--definition-background: midnightblue;
+	}
+}
+
 html, body {
 	height: 100%;
 	margin: 0;
+	color-scheme: dark light;
 }
 
 a, a:visited {
-	color: #06c;
+	&:not(:active) {
+		color: var(--link-color);
+	}
 	text-decoration: underline 0.075em;
 }
 
 .boggle {
+	background-color: Canvas;
 	display: flex;
 	height: 100%;
 	overflow: hidden;
@@ -75,21 +113,22 @@ button.expand {
 }
 
 button {
-	background-color: #eee;
-	color: black;
-	border: none;
-	box-shadow: 0px 0px 3px gray;
+	border-width: 1px;
+	border-style: solid;
 	border-radius: 8px;
+	background-color: var(--button-background-color);
+	color: var(--default-button-text-color);
+	color: CanvasText;
 	&:hover {
-		background-color: #ddd;
+		filter: brightness(var(--button-hover-brightness));
+	}
+	&:active {
+		filter: brightness(var(--button-active-brightness));
 	}
 	&.default {
-		background-color: #0077ea;
+		background-color: var(--default-button-background-color);
+		color: var(--default-button-text-color);
 		font-weight: 600;
-		color: white;
-		&:hover {
-			background-color: #0055a4;
-		}
 	}
 }
 
@@ -107,13 +146,13 @@ input:not(:placeholder-shown) {
 
 .board {
 	--size: min(100cqh, 100cqw);
+	--cell-margin: calc(var(--size) * 0.005);
+	--row-size: calc(var(--size) / var(--board-size));
 	display: inline-block;
 	height: var(--size);
 	width: var(--size);
 	font-size: 0;
 	.cell {
-		--cell-margin: calc(var(--size) * 0.005);
-		--row-size: calc(var(--size) / var(--board-size));
 		--cell-size: calc(var(--row-size) - (var(--cell-margin) * 2));
 		display: inline-flex;
 		box-sizing: border-box;
@@ -123,19 +162,19 @@ input:not(:placeholder-shown) {
 		height: var(--cell-size);
 		width: var(--cell-size);
 		font-size: calc(var(--cell-size) * 0.65);
-		border: calc(min(1px, var(--cell-margin) / 2)) solid brown;
-		background-color: beige;
-		color: black;
+		border: calc(min(1px, var(--cell-margin) / 2)) solid var(--block-border-color);
+		background-color: var(--block-color);
+		color: CanvasText;
 		margin: var(--cell-margin);
 		border-radius: 5%;
 		box-shadow: var(--cell-margin) var(--cell-margin) var(--cell-margin) gray;
 		user-select: none;
 		-webkit-user-select: none;
 		&.selected {
-			background-color: yellow;
+			background-color: var(--highlight-color);
 		}
 		&:focus {
-			outline: 3px solid blue;
+			outline: 3px solid SelectedItem;
 		}
 	}
 	&.rotated {
@@ -152,12 +191,12 @@ input:not(:placeholder-shown) {
 			text-decoration: underline;
 		}
 		&.rotated .cell {
-			box-shadow: -4px -4px 4px gray;
+			box-shadow: calc(-1 * var(--cell-margin)) calc(-1 * var(--cell-margin)) calc(-1 * var(--cell-margin)) gray;
 		}
 	}
 }
 
-.finished .cell {
+.finished .cell > div {
 	animation-name: flash;
 	animation-duration: 4s;
 }
@@ -168,7 +207,7 @@ input:not(:placeholder-shown) {
 
 .timer {
 	font-size: 16pt;
-	color: lightblue;
+	color: var(--timer-color);
 }
 
 .result:not(:empty) {
@@ -198,7 +237,7 @@ input:not(:placeholder-shown) {
 	margin-left: 20%;
 	text-align: left;
 	border: 1px solid gray;
-	background-color: azure;
+	background-color: var(--definition-background);
 	.see {
 		font-style: italic;
 	}
@@ -257,8 +296,8 @@ dialog {
 .flash {
 	position: absolute;
 	font-weight: 800;
-	color: white;
-	-webkit-text-stroke: 5px black;
+	color: Canvas;
+	-webkit-text-stroke: 5px CanvasText;
 	user-select: none;
 	-webkit-user-select: none;
 	pointer-events: none;
@@ -271,15 +310,15 @@ dialog {
 
 @keyframes flash {
 	from {
-		color: black;
+		opacity: 100%;
 	}
 
 	10% {
-		color: rgba(0, 0, 0, 10%);
+		opacity: 10%;
 	}
 
 	to {
-		color: black;
+		opacity: 100%;
 	}
 }
 
