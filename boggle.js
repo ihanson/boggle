@@ -129,6 +129,7 @@ class BoggleGame {
 		this.#main.appendChild(this.#controls);
 		target.textContent = "";
 		target.appendChild(this.#container);
+		const gameControls = document.createElement("div");
 		const startButton = document.createElement("button");
 		startButton.classList.add("timerButton", "default");
 		startButton.appendChild(document.createTextNode("Start"));
@@ -157,10 +158,9 @@ class BoggleGame {
 					domGrid.flashText("Time!");
 				}
 				silence.pause();
-				timerButton.parentElement.removeChild(timerButton);
-				timerDiv.parentElement.removeChild(timerDiv);
-				const [wordChecker, wordInput] = this.#wordChecker(domGrid);
-				this.#controls.appendChild(wordChecker);
+				gameControls.parentElement.removeChild(gameControls);
+				this.#container.classList.add("gameOver");
+				const wordInput = this.#makeWordChecker(domGrid);
 				globalThis.localStorage.removeItem("currentGame");
 				globalThis.localStorage.removeItem("currentGameTime");
 				setTimeout(() => this.#showAllWords(wordInput), 0);
@@ -217,19 +217,23 @@ class BoggleGame {
 				startTimer();
 			}
 		})
-		this.#controls.appendChild(startButton);
-		this.#controls.appendChild(timerDiv);
+		gameControls.appendChild(startButton);
+		gameControls.appendChild(timerDiv);
+		this.#controls.appendChild(gameControls);
 		startButton.focus();
 		if (startImmediately) {
 			startButton.click();
 		}
 	}
 
-	/** @returns {[HTMLDivElement, HTMLInputElement]} */
-	#wordChecker(/** @type {DOMGrid} */ domGrid) {
+	/** @returns {HTMLInputElement} */
+	#makeWordChecker(/** @type {DOMGrid} */ domGrid) {
 		const MinLength = 4;
 		const collinsThrottle = new Throttle(1000);
-		const div = document.createElement("div");
+		const wordCheck = document.createElement("div");
+		wordCheck.classList.add("wordCheck")
+		const defContainer = document.createElement("div");
+		defContainer.classList.add("definitions");
 		const textbox = document.createElement("input");
 		const result = document.createElement("div");
 		result.classList.add("result");
@@ -263,35 +267,38 @@ class BoggleGame {
 				} else {
 					result.innerText = `${word} is not a valid word.`;
 				}
+				defContainer.innerText = "";
 				if (wordPath && isRealWord) {
 					const lookupResult = await lookupPromise;
 					if (lookupResult.from) {
-						result.appendChild(BoggleGame.#definitionElement(lookupResult.from));
-						result.appendChild(BoggleGame.#definitionElement(lookupResult));
+						defContainer.appendChild(BoggleGame.#definitionElement(lookupResult.from));
+						defContainer.appendChild(BoggleGame.#definitionElement(lookupResult));
 					} else {
-						result.appendChild(BoggleGame.#definitionElement(lookupResult));
+						defContainer.appendChild(BoggleGame.#definitionElement(lookupResult));
 					}
 				}
 			} catch (e) {
 				console.error(e);
 			}
 		});
-		div.appendChild(textbox);
-		div.appendChild(result);
-		return [div, textbox];
+		wordCheck.appendChild(textbox);
+		wordCheck.appendChild(result);
+		this.#controls.appendChild(wordCheck);
+		this.#controls.appendChild(defContainer);
+		return textbox;
 	}
 
 	async #showAllWords(/** @type {HTMLInputElement} */ wordInput) {
 		const words = [...await this.#validWords];
-		const button = document.createElement("button");
-		button.appendChild(document.createTextNode("\xab"));
-		button.classList.add("expand");
-		button.addEventListener("click", () => {
-			button.parentElement.removeChild(button);
-			this.#container.classList.add("showReveal");
+		const expandButton = document.createElement("button");
+		expandButton.appendChild(document.createTextNode("\xab"));
+		expandButton.classList.add("expand");
+		this.#reveal.appendChild(expandButton)
+		expandButton.addEventListener("click", () => {
+			expandButton.parentElement.removeChild(expandButton);
+			this.#container.classList.add("showWordList");
 			this.#reveal.scroll({behavior: "instant", top: 0, left: 0});
 		});
-		this.#container.appendChild(button);
 		const callback = (/** @type {string} */ word) => {
 			wordInput.value = word;
 			wordInput.dispatchEvent(new Event("input"));

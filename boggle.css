@@ -1,3 +1,187 @@
+@media ((aspect-ratio >= 2/1) and (width <= 980px)) {
+	/* Landscape phone screen */
+	.boggle {
+		height: 100%;
+		overflow: hidden;
+		display: flex;
+		flex-direction: row;
+		> .main {
+			flex: 1;
+			display: flex;
+			flex-direction: row;
+		}
+		&:not(.gameOver) > .main {
+			> .boardContainer {
+				width: 100cqh;
+			}
+			> .controls {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+			}
+		}
+		&.gameOver > .main {
+			> .boardContainer {
+				width: 80cqh;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+			}
+			> .controls {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				padding: 1em;
+				> .definitions {
+					flex: 1;
+					overflow-y: auto;
+				}
+			}
+		}
+		&.showWordList > .reveal {
+			width: 10em;
+			overflow-y: scroll;
+		}
+	}
+	button.expand {
+		height: 100%;
+		width: 1em;
+	}
+}
+
+@media (orientation: landscape) and (aspect-ratio < 2/1), (orientation: landscape) and (width > 980px) {
+	/* Landscape screen */
+	.boggle {
+		height: 100%;
+		overflow: hidden;
+		display: flex;
+		flex-direction: row;
+		> .main {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+		&:not(.gameOver) > .main {
+			> .boardContainer {
+				height: calc(min(30rem, 100cqh - 10rem));
+			}
+			> .controls {
+				flex: 1;
+				padding-top: 1rem;
+			}
+		}
+		&.gameOver > .main {
+			> .boardContainer {
+				flex: 1;
+			}
+			> .controls {
+				display: flex;
+				flex-direction: column;
+				height: 18rem;
+				> .definitions {
+					flex: 1;
+					overflow-y: auto;
+					.definition {
+						width: 60%;
+						margin-left: 20%;
+					}
+				}
+			}
+		}
+		&.showWordList > .reveal {
+			width: 16em;
+			overflow-y: scroll;
+		}
+	}
+	button.expand {
+		height: 100%;
+		width: 1em;
+	}
+}
+
+@media (orientation: portrait) {
+	/* Portrait screen */
+	.boggle {
+		--min-lookup-height: 18rem;
+		--min-wordlist-height: 20rem;
+		--expand-button-height: 2rem;
+		height: 100%;
+		container-type: size;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		> .main {
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+			> .boardContainer {
+				height: var(--board-height);
+			}
+			> .controls {
+				padding-top: 1rem;
+				> .definitions > .definition {
+					width: 80%;
+					margin-left: 10%;
+				}
+			}
+		}
+		&:not(.gameOver) > .main {
+			--board-height: calc(min(100cqw, 100cqh - 10rem));
+			flex: 1;
+			> .controls {
+				flex: 1;
+			}
+		}
+		&.gameOver:not(.showWordList) {
+			> .main {
+				--board-height: calc(min(100cqw, 100cqh - var(--min-lookup-height) - var(--min-wordlist-height)));
+				flex: 1;
+				> .controls {
+					flex: 1;
+					display: flex;
+					flex-direction: column;
+					overflow-y: hidden;
+					> .definitions {
+						flex: 1;
+						overflow-y: auto;
+					}
+				}
+			}
+		}
+		&.gameOver.showWordList {
+			> .main {
+				--board-height: calc(min(100cqw, 100cqh - var(--min-lookup-height) - var(--min-wordlist-height)));
+				height: calc(var(--board-height) + var(--min-lookup-height));
+				> .controls {
+					display: flex;
+					flex-direction: column;
+					height: var(--min-lookup-height);
+					overflow-y: hidden;
+					> .definitions {
+						flex: 1;
+						overflow-y: auto;
+					}
+				}
+			}
+			> .reveal {
+				flex: 1;
+				padding-left: 10%;
+				overflow-y: scroll;
+				ul {
+					column-count: 4;
+				}
+			}
+		}
+		button.expand {
+			display: block;
+			width: 100%;
+			height: var(--expand-button-height);
+			overflow: hidden;
+		}
+	}
+}
+
 @media (pointer: coarse) {
 	button {
 		padding: 1em;
@@ -52,6 +236,15 @@
 	}
 }
 
+:root, button, input {
+	font-family: "Open Sans", sans-serif;
+	font-size: 16pt;
+}
+
+.boggle * {
+	box-sizing: border-box;
+}
+
 html, body {
 	height: 100%;
 	margin: 0;
@@ -67,49 +260,24 @@ a, a:visited {
 
 .boggle {
 	background-color: Canvas;
-	display: flex;
-	height: 100%;
-	overflow: hidden;
-	.main {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
+	> .main {
 		text-align: center;
-		position: relative;
-		padding-bottom: 2em;
-		> .boardContainer {
-			flex: 1;
-		}
-		> .controls {
-			min-height: 10em;
-			padding-top: 2em;
-		}
 	}
-	.reveal {
-		width: 16em;
-		overflow-y: scroll;
+	&:not(.gameOver) > .reveal {
+		display: none;
 	}
-	&:not(.showReveal) .reveal {
+	&:not(.showWordList) > .reveal > ul {
 		display: none;
 	}
 }
 
 button.expand {
-	position: absolute;
-	right: 0;
-	top: 0;
 	font-size: 24pt;
-	height: 100%;
-	width: 1em;
+	line-height: 0;
 	border: none;
 	box-shadow: none;
 	border-radius: 0;
 	margin: 0;
-}
-
-:root, button, input {
-	font-family: "Open Sans", sans-serif;
-	font-size: 16pt;
 }
 
 button {
@@ -137,7 +305,6 @@ input:not(:placeholder-shown) {
 }
 
 .boardContainer {
-	position: relative;
 	white-space: nowrap;
 	container-type: size;
 	padding: 15px;
@@ -155,7 +322,6 @@ input:not(:placeholder-shown) {
 	.cell {
 		--cell-size: calc(var(--row-size) - (var(--cell-margin) * 2));
 		display: inline-flex;
-		box-sizing: border-box;
 		flex-direction: column;
 		justify-content: center;
 		font-family: "Work Sans", sans-serif;
@@ -178,7 +344,9 @@ input:not(:placeholder-shown) {
 		}
 	}
 	&.rotated {
-		transition: transform 1s ease, box-shadow 1s ease;
+		&, & .cell {
+			transition: transform 1s ease, box-shadow 1s ease;
+		}
 		transform: rotate(180deg);
 		&:not(.flat) .cell {
 			transform: rotate(-180deg);
@@ -232,9 +400,7 @@ input:not(:placeholder-shown) {
 }
 
 .definition:not(:empty) {
-	width: 60%;
 	margin-top: 0.5em;
-	margin-left: 20%;
 	text-align: left;
 	border: 1px solid gray;
 	background-color: var(--definition-background);
