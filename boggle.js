@@ -1036,6 +1036,7 @@ startGame();
  *   https://pixabay.com/sound-effects/marimba-lose-250960/
  *   https://pixabay.com/sound-effects/game-level-complete-143022/
  * 
- * Icon:
+ * Icons:
  *   https://commons.wikimedia.org/wiki/File:Wiktfavicon_en.svg
+ *   https://www.flaticon.com/free-icon/games_10775709
  */
