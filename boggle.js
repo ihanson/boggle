@@ -130,7 +130,7 @@ class BoggleGame {
 		target.textContent = "";
 		target.appendChild(this.#container);
 		const startButton = document.createElement("button");
-		startButton.classList.add("timerButton");
+		startButton.classList.add("timerButton", "default");
 		startButton.appendChild(document.createTextNode("Start"));
 		const timerButton = document.createElement("button");
 		timerButton.classList.add("timerButton");
@@ -219,6 +219,7 @@ class BoggleGame {
 		})
 		this.#controls.appendChild(startButton);
 		this.#controls.appendChild(timerDiv);
+		startButton.focus();
 		if (startImmediately) {
 			startButton.click();
 		}
