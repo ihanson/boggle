@@ -291,7 +291,7 @@ class BoggleGame {
 	async #showAllWords(/** @type {HTMLInputElement} */ wordInput) {
 		const words = [...await this.#validWords];
 		const expandButton = document.createElement("button");
-		expandButton.appendChild(document.createTextNode("\xab"));
+		expandButton.appendChild(document.createTextNode("All Words"));
 		expandButton.classList.add("expand");
 		this.#reveal.appendChild(expandButton)
 		expandButton.addEventListener("click", () => {
