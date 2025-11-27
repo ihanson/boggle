@@ -1,3 +1,58 @@
+@media (orientation: landscape) and (aspect-ratio < 2/1), (orientation: landscape) and (width > 980px) {
+	/* Landscape screen */
+	.boggle {
+		height: 100%;
+		overflow: hidden;
+		display: flex;
+		flex-direction: row;
+		> .main {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+		}
+		&:not(.gameOver) > .main {
+			> .boardContainer {
+				height: calc(min(30rem, 100cqh - 10rem));
+			}
+			> .controls {
+				flex: 1;
+				padding-top: 1rem;
+			}
+		}
+		&.gameOver > .main {
+			> .boardContainer {
+				flex: 1;
+			}
+			> .controls {
+				display: flex;
+				flex-direction: column;
+				height: 18rem;
+				> .definitions {
+					flex: 1;
+					overflow-y: auto;
+					.definition {
+						width: 60%;
+						margin-left: 20%;
+					}
+				}
+			}
+		}
+		&.showWordList > .reveal {
+			width: 16em;
+			overflow-y: scroll;
+		}
+	}
+	button.expand {
+		height: 100%;
+		width: 2em;
+		writing-mode: sideways-lr;
+		&::after {
+			content: "\21a5";
+			padding: 1ex;
+		}
+	}
+}
+
 @media ((aspect-ratio >= 2/1) and (width <= 980px)) {
 	/* Landscape phone screen */
 	.boggle {
@@ -41,61 +96,6 @@
 		}
 		&.showWordList > .reveal {
 			width: 10em;
-			overflow-y: scroll;
-		}
-	}
-	button.expand {
-		height: 100%;
-		width: 2em;
-		writing-mode: sideways-lr;
-		&::after {
-			content: "\21a5";
-			padding: 1ex;
-		}
-	}
-}
-
-@media (orientation: landscape) and (aspect-ratio < 2/1), (orientation: landscape) and (width > 980px) {
-	/* Landscape screen */
-	.boggle {
-		height: 100%;
-		overflow: hidden;
-		display: flex;
-		flex-direction: row;
-		> .main {
-			flex: 1;
-			display: flex;
-			flex-direction: column;
-		}
-		&:not(.gameOver) > .main {
-			> .boardContainer {
-				height: calc(min(30rem, 100cqh - 10rem));
-			}
-			> .controls {
-				flex: 1;
-				padding-top: 1rem;
-			}
-		}
-		&.gameOver > .main {
-			> .boardContainer {
-				flex: 1;
-			}
-			> .controls {
-				display: flex;
-				flex-direction: column;
-				height: 18rem;
-				> .definitions {
-					flex: 1;
-					overflow-y: auto;
-					.definition {
-						width: 60%;
-						margin-left: 20%;
-					}
-				}
-			}
-		}
-		&.showWordList > .reveal {
-			width: 16em;
 			overflow-y: scroll;
 		}
 	}
