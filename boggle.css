@@ -314,8 +314,12 @@ button {
 	}
 }
 
-input:not(:placeholder-shown) {
-	text-transform: uppercase;
+.boggle input {
+	border: 1px solid gray;
+	border-radius: 4px;
+	&:not(:placeholder-shown) {
+		text-transform: uppercase;
+	}
 }
 
 .boardContainer {
