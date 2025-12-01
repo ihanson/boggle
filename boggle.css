@@ -255,6 +255,12 @@
 	font-size: 16pt;
 }
 
+@media (width <= 980px) and (aspect-ratio <= 3/5) {
+	:root, button, input {
+		font-size: 28pt;
+	}
+}
+
 .boggle * {
 	box-sizing: border-box;
 }
@@ -286,7 +292,7 @@ a, a:visited {
 }
 
 button.expand {
-	font-size: 24pt;
+	font-size: 1.5em;
 	line-height: 0;
 	border: none;
 	box-shadow: none;
@@ -388,11 +394,10 @@ button {
 }
 
 .timerButton {
-	font-size: 24pt;
+	font-size: 1.5em;
 }
 
 .timer {
-	font-size: 16pt;
 	color: var(--timer-color);
 }
 
