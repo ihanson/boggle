@@ -521,16 +521,18 @@ class DOMGrid {
 	}
 
 	showLetters() {
+		this.#boardDiv.classList.add("show");
 		for (const row of this.#rows) {
 			for (const {letter, div} of row) {
 				div.setAttribute("data-letter", letter);
 				const letterDiv = div.firstElementChild;
-				letterDiv.textContent = letter;
+				letterDiv.textContent = (letter === "-" ? "" : letter);
 			}
 		}
 	}
 
 	hideLetters() {
+		this.#boardDiv.classList.remove("show");
 		for (const row of this.#rows) {
 			for (const {div} of row) {
 				div.firstChild.textContent = "";

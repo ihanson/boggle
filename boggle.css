@@ -349,6 +349,7 @@ button {
 		flex-direction: column;
 		justify-content: center;
 		font-family: "Work Sans", sans-serif;
+		vertical-align: bottom;
 		height: var(--cell-size);
 		width: var(--cell-size);
 		font-size: calc(var(--cell-size) * 0.65);
@@ -366,9 +367,12 @@ button {
 		&:focus {
 			outline: 3px solid SelectedItem;
 		}
-		&[data-letter="-"] {
-			visibility: hidden;
-		}
+	}
+	&.show .cell[data-letter="-"] > div {
+		height: 60%;
+		width: 60%;
+		margin-left: 20%;
+		background-color: CanvasText;
 	}
 	&.rotated {
 		&, & .cell {
