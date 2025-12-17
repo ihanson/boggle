@@ -3,5 +3,6 @@
 		"checkJs": true,
 		"target": "es2024",
 		"noImplicitAny": true,
+		"strictNullChecks": true
 	}
 }

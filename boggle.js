@@ -158,7 +158,7 @@ class BoggleGame {
 					domGrid.flashText("Time!");
 				}
 				silence.pause();
-				gameControls.parentElement.removeChild(gameControls);
+				gameControls.parentElement?.removeChild(gameControls);
 				this.#container.classList.add("gameOver");
 				const wordInput = this.#makeWordChecker(domGrid);
 				globalThis.localStorage.removeItem("currentGame");
@@ -207,7 +207,7 @@ class BoggleGame {
 			}
 			globalThis.localStorage.setItem("currentGame", JSON.stringify(this.#params));
 			globalThis.localStorage.setItem("currentGameTime", JSON.stringify(this.#params.gameLength));
-			startButton.parentNode.replaceChild(timerButton, startButton);
+			startButton.parentNode?.replaceChild(timerButton, startButton);
 			startTimer();
 		});
 		timerButton.addEventListener("click", () => {
@@ -241,7 +241,9 @@ class BoggleGame {
 		textbox.addEventListener("input", async () => {
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
 			const wordPath = this.#grid.makeWord(word);
-			domGrid.selectPath(wordPath);
+			if (wordPath) {
+				domGrid.selectPath(wordPath);
+			}
 			result.innerText = "";
 			if (word.length < MinLength) {
 				return;
@@ -249,7 +251,7 @@ class BoggleGame {
 			result.classList.remove("valid");
 			try {
 				const lookupPromise = this.collinsResult(word, collinsThrottle);
-				const isRealWord = (await this.#allWords).has(word) || (await lookupPromise).success;
+				const isRealWord = (await this.#allWords).has(word) || (await lookupPromise)[0].success;
 				if (!wordPath) {
 					if (isRealWord) {
 						result.appendChild(document.createTextNode("You cannot make "));
@@ -269,12 +271,8 @@ class BoggleGame {
 				}
 				defContainer.innerText = "";
 				if (wordPath && isRealWord) {
-					const lookupResult = await lookupPromise;
-					if (lookupResult.from) {
-						defContainer.appendChild(BoggleGame.#definitionElement(lookupResult.from));
-						defContainer.appendChild(BoggleGame.#definitionElement(lookupResult));
-					} else {
-						defContainer.appendChild(BoggleGame.#definitionElement(lookupResult));
+					for (const result of await lookupPromise) {
+						defContainer.appendChild(BoggleGame.#definitionElement(result));
 					}
 				}
 			} catch (e) {
@@ -295,7 +293,7 @@ class BoggleGame {
 		expandButton.classList.add("expand");
 		this.#reveal.appendChild(expandButton)
 		expandButton.addEventListener("click", () => {
-			expandButton.parentElement.removeChild(expandButton);
+			expandButton.parentElement?.removeChild(expandButton);
 			this.#container.classList.add("showWordList");
 			this.#reveal.scroll({behavior: "instant", top: 0, left: 0});
 		});
@@ -310,7 +308,7 @@ class BoggleGame {
 		const lists = [...wordsByLength.keys()]
 			.sort((a, b) => b - a)
 			.map((len) => BoggleGame.#wordList(
-				[...wordsByLength.get(len)].sort((a, b) => a.localeCompare(b)),
+				[...(wordsByLength.get(len) ?? [])].sort((a, b) => a.localeCompare(b)),
 				callback
 			));
 		for (const list of lists) {
@@ -318,7 +316,7 @@ class BoggleGame {
 		}
 	}
 
-	/** @returns {Promise<CollinsLookupResult>} */
+	/** @returns {Promise<CollinsLookupResult[]>} */
 	async collinsResult(
 		/** @type {string} */ word,
 		throttle = new Throttle(0)
@@ -334,12 +332,12 @@ class BoggleGame {
 			}
 			/** @type {CollinsLookupResult} */
 			const result = await request.json();
-			const resolvedResult = result.data?.see
-				? {
-					from: result,
+			const resolvedResult = result.success && result.data.see
+				? [
+					result,
 					...await this.collinsResult(result.data.definition)
-				}
-				: result;
+				]
+				: [result];
 			this.#lookupResults.set(word, resolvedResult);
 			return resolvedResult;
 		});
@@ -357,7 +355,7 @@ class BoggleGame {
 			if (!map.has(val)) {
 				map.set(val, new Set());
 			}
-			map.get(val).add(item);
+			map.get(val)?.add(item);
 		}
 		return map;
 	}
@@ -403,46 +401,53 @@ class BoggleGame {
 	}
 
 	/**
-	 * @typedef CollinsLookupResult
-	 * @property {CollinsLookupResult=} from
-	 * @property {true=} success
-	 * @property {{
-	 * 	   see?: string,
-	 *     definition?: string,
-	 *     posp?: string,
-	 *     complete_definition?: string
-	 * }=} data
+	 * @typedef {{
+	 *   success: true,
+	 *   data: {
+	 *     see: "see",
+	 *     definition: string
+	 *   } | {
+	 *     see: "",
+	 *     posp: string,
+	 *     complete_definition: string
+	 *   }
+	 * } | {
+	 *   success: false
+	 * }} CollinsLookupResult
 	 */
+
 	static #definitionElement(/** @type {CollinsLookupResult} */ lookupResult) {
 		const container = document.createElement("div");
 		container.classList.add("definition");
-		if (lookupResult.data?.see) {
-			const seeSpan = document.createElement("span");
-			seeSpan.classList.add("see");
-			seeSpan.appendChild(document.createTextNode(`${lookupResult.data.see} `));
-			container.appendChild(seeSpan);
-			const defSpan = document.createElement("span");
-			defSpan.appendChild(document.createTextNode(lookupResult.data.definition));
-			container.appendChild(defSpan);
-		} else if (lookupResult.success) {
-			const dl = document.createElement("dl");
-			const partsOfSpeech = lookupResult.data.posp.split("###");
-			const definitions = lookupResult.data.complete_definition.split("###");
-			for (let i = 0; i < definitions.length; i++) {
-				const partOfSpeech = partsOfSpeech[i];
-				const definition = definitions[i];
-				if (partOfSpeech) {
-					const dt = document.createElement("dt");
-					dt.textContent = partOfSpeech;
-					dl.appendChild(dt);
+		if (lookupResult.success) {
+			if (lookupResult.data.see) {
+				const seeSpan = document.createElement("span");
+				seeSpan.classList.add("see");
+				seeSpan.appendChild(document.createTextNode(`${lookupResult.data.see} `));
+				container.appendChild(seeSpan);
+				const defSpan = document.createElement("span");
+				defSpan.appendChild(document.createTextNode(lookupResult.data.definition));
+				container.appendChild(defSpan);
+			} else {
+				const dl = document.createElement("dl");
+				const partsOfSpeech = lookupResult.data.posp.split("###");
+				const definitions = lookupResult.data.complete_definition.split("###");
+				for (let i = 0; i < definitions.length; i++) {
+					const partOfSpeech = partsOfSpeech[i];
+					const definition = definitions[i];
+					if (partOfSpeech) {
+						const dt = document.createElement("dt");
+						dt.textContent = partOfSpeech;
+						dl.appendChild(dt);
+					}
+					if (definition) {
+						const dd = document.createElement("dd");
+						dd.textContent = definition;
+						dl.appendChild(dd);
+					}
 				}
-				if (definition) {
-					const dd = document.createElement("dd");
-					dd.textContent = definition;
-					dl.appendChild(dd);
-				}
+				container.appendChild(dl);
 			}
-			container.appendChild(dl);
 		}
 		return container;
 	}
@@ -478,18 +483,18 @@ class DOMGrid {
 		}
 		this.#rows = grid.letters.map(
 			(row) => row.map((letter) => ({
-				div: DOMGrid.#letterDiv(flat),
+				...DOMGrid.#letterCell(flat),
 				letter
 			}))
 		);
-		this.#rows[0]?.[0].div.setAttribute("tabindex", "0");
+		this.#rows[0]?.[0].cellDiv.setAttribute("tabindex", "0");
 		const gridHandler = new GridHandler(this.#rows);
 		for (const [y, row] of this.#rows.entries()) {
 			const rowDiv = document.createElement("div");
 			rowDiv.setAttribute("role", "row");
-			for (const [x, {div}] of row.entries()) {
-				rowDiv.appendChild(div);
-				div.addEventListener(
+			for (const [x, {cellDiv}] of row.entries()) {
+				rowDiv.appendChild(cellDiv);
+				cellDiv.addEventListener(
 					"keydown",
 					(event) => gridHandler.handleKeyDown(event, x, y, this.#rotated)
 				);
@@ -512,10 +517,10 @@ class DOMGrid {
 	setRotated() {
 		this.#boardDiv.classList.add("rotated");
 		if (this.#rows.length > 0) {
-			this.#rows[0][0].div.setAttribute("tabindex", "-1");
+			this.#rows[0][0].cellDiv.setAttribute("tabindex", "-1");
 			const lastRow = this.#rows.length - 1;
 			const lastCol = this.#rows[lastRow].length -1;
-			this.#rows[lastRow][lastCol].div.setAttribute("tabindex", "0");
+			this.#rows[lastRow][lastCol].cellDiv.setAttribute("tabindex", "0");
 			this.#rotated = true;
 		}
 	}
@@ -523,10 +528,9 @@ class DOMGrid {
 	showLetters() {
 		this.#boardDiv.classList.add("show");
 		for (const row of this.#rows) {
-			for (const {letter, div} of row) {
-				div.setAttribute("data-letter", letter);
-				const letterDiv = div.firstElementChild;
-				letterDiv.textContent = (letter === "-" ? "" : letter);
+			for (const cell of row) {
+				cell.cellDiv.setAttribute("data-letter", cell.letter);
+				cell.innerDiv.textContent = (cell.letter === "-" ? "" : cell.letter);
 			}
 		}
 	}
@@ -534,16 +538,16 @@ class DOMGrid {
 	hideLetters() {
 		this.#boardDiv.classList.remove("show");
 		for (const row of this.#rows) {
-			for (const {div} of row) {
-				div.firstChild.textContent = "";
+			for (const {innerDiv} of row) {
+				innerDiv.textContent = "";
 			}
 		}
 	}
 
 	selectPath(/** @type {[number, number][]} */ wordPath) {
 		for (const [y, row] of this.#rows.entries()) {
-			for (const [x, {div}] of row.entries()) {
-				div.classList.toggle("selected", !!wordPath && wordPath.some(
+			for (const [x, {cellDiv}] of row.entries()) {
+				cellDiv.classList.toggle("selected", !!wordPath && wordPath.some(
 					([pathX, pathY]) => pathX === x && pathY === y)
 				);
 			}
@@ -561,7 +565,7 @@ class DOMGrid {
 		div.style.fontSize = fontSize;
 		div.textContent = text;
 		div.style.visibility = "none";
-		document.firstElementChild.appendChild(div);
+		document.firstElementChild?.appendChild(div);
 		const textRect = div.getBoundingClientRect();
 		const targetRect = this.#boardDiv.getBoundingClientRect();
 		div.style.left = `${targetRect.left + (targetRect.width / 2) - (textRect.width / 2)}px`;
@@ -569,7 +573,7 @@ class DOMGrid {
 		div.classList.add("animating");
 		div.style.removeProperty("visibility");
 		div.addEventListener("animationend", () => {
-			div.parentNode.removeChild(div);
+			div.parentNode?.removeChild(div);
 		});
 	}
 
@@ -577,18 +581,18 @@ class DOMGrid {
 		this.#boardDiv.classList.add("finished");
 	}
 
-	static #letterDiv(/** @type {boolean} */ flat) {
-		const letterDiv = document.createElement("div");
+	static #letterCell(/** @type {boolean} */ flat) {
+		const cellDiv = document.createElement("div");
 		const innerDiv = document.createElement("div");
 		if (flat) {
 			const angle = Math.floor(Math.random() * 4) * 90;
 			innerDiv.style.transform = `rotate(${angle}deg)`;
 		}
-		letterDiv.classList.add("cell");
-		letterDiv.setAttribute("tabindex", "-1");
-		letterDiv.setAttribute("role", "gridcell");
-		letterDiv.appendChild(innerDiv);
-		return letterDiv;
+		cellDiv.classList.add("cell");
+		cellDiv.setAttribute("tabindex", "-1");
+		cellDiv.setAttribute("role", "gridcell");
+		cellDiv.appendChild(innerDiv);
+		return {cellDiv, innerDiv};
 	}
 
 	#boardContainer;
@@ -668,7 +672,7 @@ class BoggleGrid {
 		return null;
 	}
 
-	/** @returns {[number, number][]} */
+	/** @returns {[number, number][] | null} */
 	#makeWordHelper(
 		/** @type {string[]} */ word,
 		/** @type {number} */ colIndex,
@@ -726,7 +730,7 @@ class Timer {
 		if (!this.#at.has(time)) {
 			this.#at.set(time, []);
 		}
-		this.#at.get(time).push(callback);
+		this.#at.get(time)?.push(callback);
 		return this;
 	}
 
@@ -749,7 +753,7 @@ class Timer {
 	}
 
 	stop() {
-		if (this.isRunning()) {
+		if (this.isRunning() && this.#interval !== null) {
 			clearInterval(this.#interval);
 			this.#interval = null;
 		}
@@ -816,7 +820,7 @@ class Throttle {
 		const thisTimeout = setTimeout(async () => {
 			if (this.#currentTimeout === thisTimeout) {
 				this.#lastEventTime = performance.now();
-				const result = await task.call();
+				const result = await task.call(null);
 				if (this.#currentTimeout === thisTimeout) {
 					this.#currentTimeout = null;
 					resolve(result);
@@ -892,13 +896,15 @@ class WorkerBox {
 	/** @type {Promise<ReturnType>} */ #promise;
 }
 
+/** @returns {Promise<void>} */
 function sleep(/** @type {number} */ time) {
 	return new Promise((resolve) => setTimeout(() => resolve(), time));
 }
 
 /**
  * @typedef DOMGridElement
- * @property {HTMLDivElement} div
+ * @property {HTMLDivElement} cellDiv
+ * @property {HTMLDivElement} innerDiv
  * @property {string} letter
  */
 class GridHandler {
@@ -924,7 +930,7 @@ class GridHandler {
 		);
 		if (newCoords) {
 			const [newX, newY] = newCoords;
-			this.#rows[newY][newX].div.focus();
+			this.#rows[newY][newX].cellDiv.focus();
 			event.preventDefault();
 		}
 	}
@@ -990,7 +996,7 @@ function showPrompt(
 		const button = document.createElement("button");
 		button.textContent = text;
 		button.addEventListener("click", () => {
-			dialog.parentElement.removeChild(dialog);
+			dialog.parentElement?.removeChild(dialog);
 			resolvePromise(value);
 		});
 		button.addEventListener("keypress", (e) => {
@@ -1030,13 +1036,13 @@ async function startGame() {
 		gameLength: Number(urlParams.get("time") ?? (6 * 60)),
 		grid: (
 			urlParams.has("letters")
-			? BoggleGrid.fromString(urlParams.get("letters"))
+			? BoggleGrid.fromString(urlParams.get("letters") ?? "")
 			: BoggleGrid.fromDice(BigBoggleDice)
 		)
 	};
 	globalThis.localStorage.removeItem("currentGame");
 	globalThis.localStorage.removeItem("currentGameTime");
-	const startTime = continueGame ? JSON.parse(currentGameTime) : params.gameLength;
+	const startTime = continueGame ? JSON.parse(currentGameTime ?? "0") : params.gameLength;
 	const game = new BoggleGame(params, startTime);
 	game.renderGame(document.body, urlParams.has("flat"), continueGame);
 }
