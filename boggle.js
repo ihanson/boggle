@@ -609,13 +609,17 @@ class BoggleGrid {
 	}
 
 	static fromString(/** @type {string} */ letters) {
+		const splitLetters = (
+			[...letters].every((char) => char.match(/[a-z-]/))
+				? letters.toUpperCase().replaceAll("Q", "Qu")
+				: letters
+		).split(/(?=[A-Z-])/);
 		const rows = [];
-		const size = Math.floor(Math.sqrt(letters.length));
+		const size = Math.floor(Math.sqrt(splitLetters.length));
 		for (let y = 0; y < size; y++) {
 			const row = []
 			for (let x = 0; x < size; x++) {
-				const letter = letters[y * size + x];
-				row.push(letter === "Q" ? "Qu" : letter);
+				row.push(splitLetters[y * size + x]);
 			}
 			rows.push(row);
 		}
@@ -1024,7 +1028,7 @@ async function startGame() {
 		gameLength: Number(urlParams.get("time") ?? (6 * 60)),
 		grid: (
 			urlParams.has("letters")
-			? BoggleGrid.fromString(urlParams.get("letters").toLocaleUpperCase())
+			? BoggleGrid.fromString(urlParams.get("letters"))
 			: BoggleGrid.fromDice(BigBoggleDice)
 		)
 	};

@@ -366,6 +366,9 @@ button {
 		&:focus {
 			outline: 3px solid SelectedItem;
 		}
+		&[data-letter="-"] {
+			visibility: hidden;
+		}
 	}
 	&.rotated {
 		&, & .cell {
