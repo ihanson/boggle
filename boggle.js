@@ -30,8 +30,8 @@ const WordListURL = "https://raw.githubusercontent.com/wordnik/wordlist/refs/hea
 
 /**
  * @typedef BoggleGameParams
- * @property {number} gameLength
  * @property {string[][]} grid
+ * @property {number} gameLength
  */
 /** @typedef {typeof BoggleGrid} BoggleGridClass */
 
@@ -143,7 +143,10 @@ class BoggleGame {
 		const timer = new Timer(this.#startTime)
 			.everySecond((/** @type {number} */ time) => {
 				timerDiv.innerText = BoggleGame.#formatTime(time);
-				globalThis.localStorage.setItem("currentGameTime", JSON.stringify(time));
+				setHistoryState({
+					params: this.#params,
+					time
+				});
 			})
 			.at(Math.floor(this.#params.gameLength / 2) + 2, () => {
 				new Audio("Resources/warning.mp3").play();
@@ -152,7 +155,7 @@ class BoggleGame {
 				domGrid.setRotated();
 			})
 			.onComplete((isEarly) => {
-				if (!isEarly) {
+				if (!isEarly && this.#startTime > 0) {
 					new Audio("Resources/complete.mp3").play();
 					domGrid.setFinished();
 					domGrid.flashText("Time!");
@@ -161,8 +164,7 @@ class BoggleGame {
 				gameControls.parentElement?.removeChild(gameControls);
 				this.#container.classList.add("gameOver");
 				const wordInput = this.#makeWordChecker(domGrid);
-				globalThis.localStorage.removeItem("currentGame");
-				globalThis.localStorage.removeItem("currentGameTime");
+				setHistoryState({params: this.#params, time: 0});
 				setTimeout(() => this.#showAllWords(wordInput), 0);
 				this.#releaseWaitLock();
 			});
@@ -196,17 +198,15 @@ class BoggleGame {
 			}
 		};
 		startButton.addEventListener("click", async () => {
-			const time = 1000;
 			startButton.style.visibility = "hidden";
 			if (this.#params.gameLength > 0 && !startImmediately) {
+				const time = 1000;
 				for (let count = 3; count > 0; count--) {
 					domGrid.flashText(count.toLocaleString(), time, "200pt");
 					await sleep(time);
 				}
 				await sleep(time * 0.1);
 			}
-			globalThis.localStorage.setItem("currentGame", JSON.stringify(this.#params));
-			globalThis.localStorage.setItem("currentGameTime", JSON.stringify(this.#params.gameLength));
 			startButton.parentNode?.replaceChild(timerButton, startButton);
 			startTimer();
 		});
@@ -283,6 +283,16 @@ class BoggleGame {
 		wordCheck.appendChild(result);
 		this.#controls.appendChild(wordCheck);
 		this.#controls.appendChild(defContainer);
+		const newGameDiv = document.createElement("div");
+		newGameDiv.classList.add("newGame");
+		const newGameButton = document.createElement("button");
+		newGameButton.textContent = "New Game";
+		newGameButton.classList.add("default");
+		newGameButton.addEventListener("click", () => {
+			window.open(globalThis.location.href);
+		});
+		newGameDiv.appendChild(newGameButton);
+		this.#main.insertBefore(newGameDiv, this.#main.firstElementChild);
 		return textbox;
 	}
 
@@ -1019,35 +1029,63 @@ function showPrompt(
 	return promise;
 }
 
-async function startGame() {
-	/** @returns {BoggleGameParams} */
-	function parseParams(/** @type {string} */ paramStr) {
-		return JSON.parse(paramStr);
-	}
-	const urlParams = new URLSearchParams(globalThis.location.search);
-	const currentGame = globalThis.localStorage.getItem("currentGame");
-	const currentGameTime = globalThis.localStorage.getItem("currentGameTime");
-	const continueGame = !!currentGame && await showPrompt(
-		document.body,
-		"Continue the game already in progress?",
-		[["Continue", true], ["Start a New Game", false]]
-	);
-	const params = continueGame ? parseParams(currentGame) : {
-		gameLength: Number(urlParams.get("time") ?? (6 * 60)),
-		grid: (
-			urlParams.has("letters")
-			? BoggleGrid.fromString(urlParams.get("letters") ?? "")
-			: BoggleGrid.fromDice(BigBoggleDice)
-		)
-	};
-	globalThis.localStorage.removeItem("currentGame");
-	globalThis.localStorage.removeItem("currentGameTime");
-	const startTime = continueGame ? JSON.parse(currentGameTime ?? "0") : params.gameLength;
-	const game = new BoggleGame(params, startTime);
-	game.renderGame(document.body, urlParams.has("flat"), continueGame);
+/**
+ * @typedef {{
+ *   params: BoggleGameParams,
+ *   time: number
+ * } | null} HistoryState
+ */
+
+/** @returns {HistoryState} */
+function historyState() {
+	return globalThis.history.state;
 }
 
-startGame();
+function setHistoryState(/** @type {HistoryState} */ state) {
+	globalThis.history.replaceState(state, "");
+}
+
+/** @returns {Promise<[BoggleGame, boolean]>} */
+async function gameToPlay(/** @type {URLSearchParams} */ urlParams) {
+	const letters = urlParams.get("letters");
+	const time = urlParams.get("time");
+	const state = historyState();
+	if (state) {
+		const continueGame = await showPrompt(
+			document.body,
+			"Continue the game already in progress?",
+			[["Continue", true], ["Start a New Game", false]]
+		);
+		if (continueGame) {
+			return [
+				new BoggleGame(state.params, state.time ?? undefined),
+				true
+			];
+		} else {
+			setHistoryState(null);
+		}
+	}
+	return [
+		new BoggleGame(
+			{
+				grid: letters !== null
+					? BoggleGrid.fromString(letters)
+					: BoggleGrid.fromDice(BigBoggleDice),
+				gameLength: time ? parseInt(time) : (6 * 60)
+			},
+			undefined
+		),
+		false
+	]
+}
+
+async function createGame() {
+	const urlParams = new URLSearchParams(globalThis.location.search);
+	const [game, startImmediately] = await gameToPlay(urlParams);
+	game.renderGame(document.body, urlParams.has("flat"), startImmediately);
+}
+
+createGame();
 
 /**
  * Sounds:

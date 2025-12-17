@@ -467,6 +467,11 @@ button.word {
 	}
 }
 
+.newGame {
+	align-self: center;
+	padding: 0.5em;
+}
+
 dialog {
 	border: none;
 	margin-top: 100px;
