@@ -312,16 +312,18 @@ class BoggleGame {
 	}
 
 	async #showAllWords(/** @type {HTMLInputElement} */ wordInput) {
-		const words = [...await this.#validWords];
 		const expandButton = document.createElement("button");
 		expandButton.appendChild(document.createTextNode("All Words"));
 		expandButton.classList.add("expand");
+		expandButton.disabled = true;
 		this.#reveal.appendChild(expandButton)
 		expandButton.addEventListener("click", () => {
 			expandButton.parentElement?.removeChild(expandButton);
 			this.#container.classList.add("showWordList");
 			this.#reveal.scroll({behavior: "instant", top: 0, left: 0});
 		});
+		const words = [...await this.#validWords];
+		expandButton.disabled = false;
 		const callback = (/** @type {string} */ word) => {
 			wordInput.value = word;
 			wordInput.dispatchEvent(new Event("input"));

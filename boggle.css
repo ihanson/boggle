@@ -222,6 +222,7 @@
 		--button-text-color: black;
 		--default-button-background-color: dodgerblue;
 		--default-button-text-color: white;
+		--button-disabled-brightness: 110%;
 		--button-hover-brightness: 85%;
 		--button-active-brightness: 70%;
 		--link-color: royalblue;
@@ -239,6 +240,7 @@
 		--button-text-color: white;
 		--default-button-background-color: deepskyblue;
 		--default-button-text-color: black;
+		--button-disabled-brightness: 90%;
 		--button-hover-brightness: 115%;
 		--button-active-brightness: 130%;
 		--link-color: LinkText;
@@ -306,12 +308,18 @@ button {
 	border-radius: 8px;
 	background-color: var(--button-background-color);
 	color: var(--default-button-text-color);
-	color: CanvasText;
-	&:hover {
-		filter: brightness(var(--button-hover-brightness));
+	&:disabled {
+		color: GrayText;
+		filter: brightness(var(--button-disabled-brightness));
 	}
-	&:active {
-		filter: brightness(var(--button-active-brightness));
+	&:enabled {
+		color: CanvasText;
+		&:hover {
+			filter: brightness(var(--button-hover-brightness));
+		}
+		&:active {
+			filter: brightness(var(--button-active-brightness));
+		}
 	}
 	&.default {
 		background-color: var(--default-button-background-color);
