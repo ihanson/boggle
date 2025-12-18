@@ -188,15 +188,27 @@ class BoggleGame {
 			const result = await showPrompt(
 				this.#main,
 				null,
-				[["Resume Game", "resume"], ["End Game", "end"]]
+				[
+					["Resume Game", "resume"],
+					["End Game", "end"],
+					["Start a New Game", "new"]
+				]
 			);
 			domGrid.showLetters();
 			if (result === "resume") {
 				startTimer();
-			} else {
+			} else if (result === "end") {
 				timer.endEarly();
+			} else if (result === "new") {
+				globalThis.history.pushState(null, "");
+				createGame();
 			}
 		};
+		const popHandler = () => {
+			timer.stop();
+			globalThis.removeEventListener("popstate", popHandler);
+		}
+		globalThis.addEventListener("popstate", popHandler);
 		startButton.addEventListener("click", async () => {
 			startButton.style.visibility = "hidden";
 			if (this.#params.gameLength > 0 && !startImmediately) {
@@ -216,7 +228,7 @@ class BoggleGame {
 			} else {
 				startTimer();
 			}
-		})
+		});
 		gameControls.appendChild(startButton);
 		gameControls.appendChild(timerDiv);
 		this.#controls.appendChild(gameControls);
@@ -285,13 +297,16 @@ class BoggleGame {
 		this.#controls.appendChild(defContainer);
 		const newGameDiv = document.createElement("div");
 		newGameDiv.classList.add("newGame");
-		const newGameButton = document.createElement("button");
-		newGameButton.textContent = "New Game";
-		newGameButton.classList.add("default");
-		newGameButton.addEventListener("click", () => {
-			window.open(globalThis.location.href);
+		const newGameLink = document.createElement("a");
+		newGameLink.textContent = "New Game";
+		newGameLink.classList.add("newGame");
+		newGameLink.href = location.href;
+		newGameLink.addEventListener("click", (e) => {
+			e.preventDefault();
+			globalThis.history.pushState(null, "");
+			createGame();
 		});
-		newGameDiv.appendChild(newGameButton);
+		newGameDiv.appendChild(newGameLink);
 		this.#main.insertBefore(newGameDiv, this.#main.firstElementChild);
 		return textbox;
 	}
@@ -1050,33 +1065,25 @@ async function gameToPlay(/** @type {URLSearchParams} */ urlParams) {
 	const letters = urlParams.get("letters");
 	const time = urlParams.get("time");
 	const state = historyState();
-	if (state) {
-		const continueGame = await showPrompt(
-			document.body,
-			"Continue the game already in progress?",
-			[["Continue", true], ["Start a New Game", false]]
-		);
-		if (continueGame) {
-			return [
-				new BoggleGame(state.params, state.time ?? undefined),
-				true
-			];
-		} else {
-			setHistoryState(null);
-		}
-	}
-	return [
-		new BoggleGame(
-			{
-				grid: letters !== null
-					? BoggleGrid.fromString(letters)
-					: BoggleGrid.fromDice(BigBoggleDice),
-				gameLength: time ? parseInt(time) : (6 * 60)
-			},
-			undefined
-		),
-		false
-	]
+	return (
+		state
+		? [
+			new BoggleGame(state.params, state.time ?? undefined),
+			true
+		]
+		: [
+			new BoggleGame(
+				{
+					grid: letters !== null
+						? BoggleGrid.fromString(letters)
+						: BoggleGrid.fromDice(BigBoggleDice),
+					gameLength: time ? parseInt(time) : (6 * 60)
+				},
+				undefined
+			),
+			false
+		]
+	);
 }
 
 async function createGame() {
@@ -1085,6 +1092,7 @@ async function createGame() {
 	game.renderGame(document.body, urlParams.has("flat"), startImmediately);
 }
 
+globalThis.addEventListener("popstate", () => createGame());
 createGame();
 
 /**
