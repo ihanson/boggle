@@ -198,6 +198,7 @@ class BoggleGame {
 			if (result === "resume") {
 				startTimer();
 			} else if (result === "end") {
+				domGrid.setRotated();
 				timer.endEarly();
 			} else if (result === "new") {
 				globalThis.history.pushState(null, "");
