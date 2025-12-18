@@ -250,7 +250,9 @@ class BoggleGame {
 		const result = document.createElement("div");
 		result.classList.add("result");
 		textbox.setAttribute("placeholder", "Check a word");
+		let lastInput = 0;
 		textbox.addEventListener("input", async () => {
+			const thisInput = ++lastInput;
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
 			const wordPath = this.#grid.makeWord(word);
 			if (wordPath) {
@@ -264,6 +266,9 @@ class BoggleGame {
 			try {
 				const lookupPromise = this.collinsResult(word, collinsThrottle);
 				const isRealWord = (await this.#allWords).has(word) || (await lookupPromise)[0].success;
+				if (thisInput !== lastInput) {
+					return;
+				}
 				if (!wordPath) {
 					if (isRealWord) {
 						result.appendChild(document.createTextNode("You cannot make "));
@@ -283,7 +288,11 @@ class BoggleGame {
 				}
 				defContainer.innerText = "";
 				if (wordPath && isRealWord) {
-					for (const result of await lookupPromise) {
+					const results = await lookupPromise;
+					if (thisInput !== lastInput) {
+						return;
+					}
+					for (const result of results) {
 						defContainer.appendChild(BoggleGame.#definitionElement(result));
 					}
 				}
