@@ -260,6 +260,7 @@ class BoggleGame {
 				domGrid.selectPath(wordPath);
 			}
 			result.innerText = "";
+			defContainer.innerText = "";
 			if (word.length < MinLength) {
 				return;
 			}
@@ -287,7 +288,6 @@ class BoggleGame {
 				} else {
 					result.innerText = `${word} is not a valid word.`;
 				}
-				defContainer.innerText = "";
 				if (wordPath && isRealWord) {
 					const results = await lookupPromise;
 					if (thisInput !== lastInput) {
