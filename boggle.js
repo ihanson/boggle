@@ -256,9 +256,7 @@ class BoggleGame {
 			const thisInput = ++lastInput;
 			const word = textbox.value.toLocaleUpperCase().replace(/[^A-Z]/g, "");
 			const wordPath = this.#grid.makeWord(word);
-			if (wordPath) {
-				domGrid.selectPath(wordPath);
-			}
+			domGrid.selectPath(wordPath ?? []);
 			result.innerText = "";
 			defContainer.innerText = "";
 			if (word.length < MinLength) {
